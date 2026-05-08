@@ -12,7 +12,7 @@ calibration constants.
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
-from typing import Any, Literal
+from typing import Any, Literal, overload
 from typing import SupportsFloat as Numeric
 
 import pandas as pd
@@ -36,6 +36,7 @@ def get_calibration_constant_pipeline_name(target_pipeline_name: str) -> str:
     return f"{target_pipeline_name}.calibration_constant"
 
 
+@overload
 def register_risk_affected_attribute_producer(
     builder: Builder,
     name: str,
@@ -43,6 +44,30 @@ def register_risk_affected_attribute_producer(
     effect_type: Literal["multiplicative", "additive"] = "multiplicative",
     required_resources: Sequence[str | Resource] = (),
     post_processors: AttributePostProcessor | Sequence[AttributePostProcessor] = (),
+    columns: None = None,
+) -> None:
+    ...
+
+@overload
+def register_risk_affected_attribute_producer(
+    builder: Builder,
+    name: str,
+    source: Callable[..., pd.DataFrame],
+    effect_type: Literal["multiplicative", "additive"] = "multiplicative",
+    required_resources: Sequence[str | Resource] = (),
+    post_processors: AttributePostProcessor | Sequence[AttributePostProcessor] = (),
+    columns: list[str] = ...,
+) -> None:
+    ...
+
+def register_risk_affected_attribute_producer(
+    builder: Builder,
+    name: str,
+    source: Callable[..., pd.Series] | Callable[..., pd.DataFrame],
+    effect_type: Literal["multiplicative", "additive"] = "multiplicative",
+    required_resources: Sequence[str | Resource] = (),
+    post_processors: AttributePostProcessor | Sequence[AttributePostProcessor] = (),
+    columns: list[str] | None = None,
 ) -> None:
     """Register a pair of pipelines for an attribute targetable by CausalFactorEffect components.
 
@@ -90,12 +115,16 @@ def register_risk_affected_attribute_producer(
     post_processors
         An AttributePostProcessor or list of AttributePostProcessors to apply
         to the attribute pipeline.
+    columns
+        If the pipeline should produce a DataFrame, the columns that DataFrame should include.
+        None if the pipeline produces a Series.
     """
     _RiskAffectedPipeline.create(
-        builder, name, source, effect_type, required_resources, post_processors, is_rate=False
+        builder, name, source, effect_type, required_resources, post_processors, columns, is_rate=False
     )
 
 
+@overload
 def register_risk_affected_rate_producer(
     builder: Builder,
     name: str,
@@ -103,6 +132,29 @@ def register_risk_affected_rate_producer(
     effect_type: Literal["multiplicative", "additive"] = "multiplicative",
     required_resources: Sequence[str | Resource] = (),
     post_processors: AttributePostProcessor | Sequence[AttributePostProcessor] = (),
+    columns: None = None,
+) -> None:
+    ...
+
+@overload
+def register_risk_affected_rate_producer(
+    builder: Builder,
+    name: str,
+    source: Callable[..., pd.DataFrame],
+    effect_type: Literal["multiplicative", "additive"] = "multiplicative",
+    required_resources: Sequence[str | Resource] = (),
+    post_processors: AttributePostProcessor | Sequence[AttributePostProcessor] = (),
+    columns: list[str] = ...,
+) -> None:
+    ...
+def register_risk_affected_rate_producer(
+    builder: Builder,
+    name: str,
+    source: Callable[..., pd.Series],
+    effect_type: Literal["multiplicative", "additive"] = "multiplicative",
+    required_resources: Sequence[str | Resource] = (),
+    post_processors: AttributePostProcessor | Sequence[AttributePostProcessor] = (),
+    columns: list[str] | None = None,
 ) -> None:
     """Register a pair of pipelines for a rate targetable by CausalFactorEffect components.
 
@@ -150,9 +202,12 @@ def register_risk_affected_rate_producer(
     post_processors
         An AttributePostProcessor or list of AttributePostProcessors to apply
         to the attribute pipeline.
+    columns
+        If the pipeline should produce a DataFrame, the columns that DataFrame should include.
+        None if the pipeline produces a Series.
     """
     _RiskAffectedPipeline.create(
-        builder, name, source, effect_type, required_resources, post_processors, is_rate=True
+        builder, name, source, effect_type, required_resources, post_processors, columns, is_rate=True
     )
 
 
@@ -196,11 +251,12 @@ class _RiskAffectedPipeline(Component):
         effect_type: Literal["multiplicative", "additive"],
         required_resources: Sequence[str | Resource],
         post_processors: AttributePostProcessor | Sequence[AttributePostProcessor],
+        columns: list[str] | None,
         is_rate: bool,
     ) -> _RiskAffectedPipeline:
         """Factory method to create and set up the class."""
         pipeline = cls(
-            name, source, effect_type, required_resources, post_processors, is_rate
+            name, source, effect_type, required_resources, post_processors, columns, is_rate
         )
         pipeline.setup_component(builder)
         return pipeline
@@ -212,6 +268,7 @@ class _RiskAffectedPipeline(Component):
         effect_type: Literal["multiplicative", "additive"],
         required_resources: Sequence[str | Resource],
         post_processors: AttributePostProcessor | Sequence[AttributePostProcessor],
+        columns: list[str] | None,
         is_rate: bool,
     ):
         super().__init__()
@@ -230,10 +287,13 @@ class _RiskAffectedPipeline(Component):
         )
         """AttributePostProcessors applied to the target pipeline after the combiner
         runs. Normalized to a sequence even when a single post-processor is supplied."""
+        self._columns = columns if columns is not None else DEFAULT_VALUE_COLUMN
+        """If the pipeline should produce a DataFrame, the columns that DataFrame should include.
+        ``DEFAULT_VALUE_COLUMN`` if the pipeline produces a Series."""
         self._is_rate = is_rate
         """``True`` if the target pipeline is a rate, ``False`` if it is an attribute.
         Selects between ``register_rate_producer`` and ``register_attribute_producer``."""
-
+    
     def setup(self, builder: Builder) -> None:
         """Register the calibration constant and target pipelines.
 
@@ -242,8 +302,14 @@ class _RiskAffectedPipeline(Component):
         builder
             Access point for utilizing framework interfaces during setup.
         """
+        initial_data: int | list[int] = (
+            0 if isinstance(self._columns, str) else [0] * len(self._columns)
+        )
         self._calibration_constant_table = self.build_lookup_table(
-            builder, "calibration_constant", data_source=0
+            builder,
+            "calibration_constant",
+            data_source=initial_data,
+            value_columns=self._columns,
         )
         """Lookup table populated in ``on_post_setup`` with the precomputed joint
         calibration constant. Registered as a modifier on the target pipeline so the
@@ -297,8 +363,8 @@ class _RiskAffectedPipeline(Component):
     # Combiners and post-processors #
     #################################
 
-    @staticmethod
     def _calibration_constant_combiner(
+        self,
         value: list[Numeric | pd.DataFrame],
         mutator: Callable[..., Numeric | pd.DataFrame],
         *args: Any,
@@ -307,8 +373,9 @@ class _RiskAffectedPipeline(Component):
         """Append the mutator result to the calibration constant list."""
         calibration_constant = mutator(*args, **kwargs)
         if isinstance(calibration_constant, pd.DataFrame):
+            value_columns = self._columns if not isinstance(self._columns, str) else [self._columns]
             index_columns = [
-                col for col in calibration_constant.columns if col != DEFAULT_VALUE_COLUMN
+                col for col in calibration_constant.columns if col not in value_columns
             ]
             calibration_constant = calibration_constant.set_index(index_columns).squeeze()
         value.append(calibration_constant)
@@ -342,4 +409,11 @@ class _RiskAffectedPipeline(Component):
             raise ValueError(f"Unsupported effect type: {self._effect_type}")
         if isinstance(joint_calibration_constant, pd.Series):
             joint_calibration_constant = joint_calibration_constant.reset_index()
+        elif isinstance(joint_calibration_constant, pd.DataFrame):
+            if isinstance(joint_calibration_constant.index, pd.MultiIndex):
+                joint_calibration_constant = joint_calibration_constant.reset_index()
+        elif not isinstance(self._columns, str):
+            # Scalar joint with a multi-column pipeline —
+            # broadcast across columns so the lookup table can ingest one value per column.
+            joint_calibration_constant = [joint_calibration_constant] * len(self._columns)
         return joint_calibration_constant

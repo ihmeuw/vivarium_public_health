@@ -52,10 +52,11 @@ class _AttributeSource(Component):
     def __init__(
         self,
         pipeline_name: str,
-        base_value: float,
+        base_value: float | dict[str, float],
         is_rate: bool = False,
         effect_type: str = "multiplicative",
         post_processors: (AttributePostProcessor | Sequence[AttributePostProcessor]) = (),
+        columns: list[str] | None = None,
     ):
         super().__init__()
         self._pipeline_name = pipeline_name
@@ -63,6 +64,7 @@ class _AttributeSource(Component):
         self._is_rate = is_rate
         self._effect_type = effect_type
         self._post_processors = post_processors
+        self._columns = columns
 
     @property
     def name(self) -> str:
@@ -71,6 +73,8 @@ class _AttributeSource(Component):
 
     @property
     def configuration_defaults(self) -> dict:
+        if self._columns is not None:
+            return {}
         return {
             self.name: {
                 "data_sources": {
@@ -80,7 +84,22 @@ class _AttributeSource(Component):
         }
 
     def setup(self, builder: Builder) -> None:
-        self.base_value_table = self.build_lookup_table(builder, "base_value")
+        if self._columns is None:
+            self.base_value_table = self.build_lookup_table(builder, "base_value")
+        else:
+            year_start = builder.configuration.time.start.year
+            year_end = builder.configuration.time.end.year
+            data = build_table_with_age(
+                [self._base_value[col] for col in self._columns],
+                parameter_columns={"year": (year_start, year_end)},
+                value_columns=self._columns,
+            )
+            self.base_value_table = self.build_lookup_table(
+                builder,
+                "base_value",
+                data_source=data,
+                value_columns=self._columns,
+            )
         register_fn = (
             register_risk_affected_rate_producer
             if self._is_rate
@@ -92,6 +111,7 @@ class _AttributeSource(Component):
             source=self.base_value_table,
             effect_type=self._effect_type,
             post_processors=self._post_processors,
+            columns=self._columns,
         )
 
 
@@ -99,10 +119,16 @@ class _CalibrationConstantModifier(Component):
     """Registers a value modifier on ``<target>.calibration_constant``
     with a constant calibration constant."""
 
-    def __init__(self, target_pipeline: str, calibration_value: float):
+    def __init__(
+        self,
+        target_pipeline: str,
+        calibration_value: float | dict[str, float],
+        columns: list[str] | None = None,
+    ):
         super().__init__()
         self._target_pipeline = target_pipeline
         self._calibration_value = calibration_value
+        self._columns = columns
 
     @property
     def name(self) -> str:
@@ -114,9 +140,17 @@ class _CalibrationConstantModifier(Component):
     def setup(self, builder: Builder) -> None:
         year_start = builder.configuration.time.start.year
         year_end = builder.configuration.time.end.year
-        data = build_table_with_age(
-            self._calibration_value, parameter_columns={"year": (year_start, year_end)}
-        )
+        if self._columns is None:
+            data = build_table_with_age(
+                self._calibration_value,
+                parameter_columns={"year": (year_start, year_end)},
+            )
+        else:
+            data = build_table_with_age(
+                [self._calibration_value[col] for col in self._columns],
+                parameter_columns={"year": (year_start, year_end)},
+                value_columns=self._columns,
+            )
         builder.value.register_value_modifier(
             get_calibration_constant_pipeline_name(self._target_pipeline),
             modifier=lambda: data,
@@ -175,6 +209,21 @@ class TestProducer:
         """Return ``(post_processors, expected_transform)``."""
         return request.param
 
+    @pytest.fixture(params=[None, ["col_a", "col_b"]], ids=["series", "multi_col"])
+    def columns(self, request):
+        return request.param
+
+    @staticmethod
+    def _per_column(scalar: float, columns: list[str] | None) -> float | dict[str, float]:
+        """Broadcast a scalar to per-column values when ``columns`` is set.
+
+        Per-column values are scaled by ``i + 1`` so that a calibration constant
+        registered against the wrong column would produce a detectable mismatch.
+        """
+        if columns is None:
+            return scalar
+        return {col: scalar * (i + 1) for i, col in enumerate(columns)}
+
     def _expected(self, base, calibration, is_rate, time_step, transform, effect_type):
         """Compute expected pipeline output for the given effect type."""
         if effect_type == "multiplicative":
@@ -184,6 +233,21 @@ class TestProducer:
         if is_rate:
             value = from_yearly(value, time_step)
         return transform(value)
+
+    def _expected_per_column(
+        self, base, calibration, is_rate, time_step, transform, effect_type, columns
+    ):
+        """Scalar expected (Series mode) or per-column dict (DataFrame mode)."""
+        if columns is None:
+            return self._expected(
+                base, calibration, is_rate, time_step, transform, effect_type
+            )
+        return {
+            col: self._expected(
+                base[col], calibration[col], is_rate, time_step, transform, effect_type
+            )
+            for col in columns
+        }
 
     @staticmethod
     def _joint_calibration(calibrations, effect_type):
@@ -195,13 +259,34 @@ class TestProducer:
             return joint
         return sum(calibrations)  # additive
 
+    def _joint_per_column(self, calibrations, effect_type, columns):
+        """Joint calibration as a scalar (Series) or per-column dict (DataFrame)."""
+        if columns is None:
+            return self._joint_calibration(calibrations, effect_type)
+        return {
+            col: self._joint_calibration([c[col] for c in calibrations], effect_type)
+            for col in columns
+        }
+
+    @staticmethod
+    def _assert_close(actual, expected, columns):
+        if columns is None:
+            assert np.allclose(actual, expected, atol=1e-5)
+        else:
+            for col in columns:
+                assert np.allclose(
+                    actual[col], expected[col], atol=1e-5
+                ), f"column {col} mismatch"
+
     def test_no_calibration_constant_modifier(
-        self, base_config, base_plugins, is_rate, effect_type, post_processor
+        self, base_config, base_plugins, is_rate, effect_type, post_processor, columns
     ):
         """No modifier → base value returned (calibration constant = 0),
         then post-processors applied."""
         post_processors, transform = post_processor
-        base_value = 0.7 if is_rate else 10.0
+        base_scalar = 0.7 if is_rate else 10.0
+        base_value = self._per_column(base_scalar, columns)
+        zero = self._per_column(0.0, columns)
         time_step = pd.Timedelta(days=base_config.time.step_size)
         pipeline_name = "test_pipeline"
         source = _AttributeSource(
@@ -210,6 +295,7 @@ class TestProducer:
             is_rate=is_rate,
             effect_type=effect_type,
             post_processors=post_processors,
+            columns=columns,
         )
 
         sim = InteractiveContext(
@@ -220,20 +306,24 @@ class TestProducer:
         sim.step()
 
         actual = sim.get_population(pipeline_name).squeeze()
-        expected = self._expected(base_value, 0, is_rate, time_step, transform, effect_type)
-        assert np.allclose(actual, expected, atol=1e-5)
+        expected = self._expected_per_column(
+            base_value, zero, is_rate, time_step, transform, effect_type, columns
+        )
+        self._assert_close(actual, expected, columns)
 
     def test_single_calibration_constant_modifier(
-        self, base_config, base_plugins, is_rate, effect_type, post_processor
+        self, base_config, base_plugins, is_rate, effect_type, post_processor, columns
     ):
         """Single calibration constant ``c`` reduces the value: ``base * (1 - c)``
         for multiplicative, ``base - c`` for additive. Then post-processors apply."""
         post_processors, transform = post_processor
-        base_value = 0.7 if is_rate else 10.0
+        base_scalar = 0.7 if is_rate else 10.0
         if effect_type == "multiplicative":
-            calibration_value = 0.25
+            calibration_scalar = 0.25
         else:  # additive — units match base_value
-            calibration_value = 0.175 if is_rate else 2.5
+            calibration_scalar = 0.175 if is_rate else 2.5
+        base_value = self._per_column(base_scalar, columns)
+        calibration_value = self._per_column(calibration_scalar, columns)
         time_step = pd.Timedelta(days=base_config.time.step_size)
         pipeline_name = "test_pipeline"
         source = _AttributeSource(
@@ -242,8 +332,11 @@ class TestProducer:
             is_rate=is_rate,
             effect_type=effect_type,
             post_processors=post_processors,
+            columns=columns,
         )
-        modifier = _CalibrationConstantModifier(pipeline_name, calibration_value)
+        modifier = _CalibrationConstantModifier(
+            pipeline_name, calibration_value, columns=columns
+        )
 
         sim = InteractiveContext(
             components=[BasePopulation(), source, modifier],
@@ -253,23 +346,32 @@ class TestProducer:
         sim.step()
 
         actual = sim.get_population(pipeline_name).squeeze()
-        expected = self._expected(
-            base_value, calibration_value, is_rate, time_step, transform, effect_type
+        expected = self._expected_per_column(
+            base_value,
+            calibration_value,
+            is_rate,
+            time_step,
+            transform,
+            effect_type,
+            columns,
         )
-        assert np.allclose(actual, expected, atol=1e-5)
+        self._assert_close(actual, expected, columns)
 
     def test_multiple_calibration_constant_modifiers(
-        self, base_config, base_plugins, is_rate, effect_type, post_processor
+        self, base_config, base_plugins, is_rate, effect_type, post_processor, columns
     ):
         """Two calibration constants combine via the union formula for
         multiplicative effects and via summation for additive effects, then
         post-processors apply."""
         post_processors, transform = post_processor
-        base_value = 0.7 if is_rate else 10.0
+        base_scalar = 0.7 if is_rate else 10.0
         if effect_type == "multiplicative":
-            c1, c2 = 0.1, 0.3
+            c1_scalar, c2_scalar = 0.1, 0.3
         else:  # additive — units match base_value
-            c1, c2 = (0.07, 0.21) if is_rate else (1.0, 3.0)
+            c1_scalar, c2_scalar = (0.07, 0.21) if is_rate else (1.0, 3.0)
+        base_value = self._per_column(base_scalar, columns)
+        c1 = self._per_column(c1_scalar, columns)
+        c2 = self._per_column(c2_scalar, columns)
         time_step = pd.Timedelta(days=base_config.time.step_size)
         pipeline_name = "test_pipeline"
         source = _AttributeSource(
@@ -278,23 +380,30 @@ class TestProducer:
             is_rate=is_rate,
             effect_type=effect_type,
             post_processors=post_processors,
+            columns=columns,
         )
 
         sim = InteractiveContext(
             components=[
                 BasePopulation(),
                 source,
-                _CalibrationConstantModifier(pipeline_name, c1),
-                _CalibrationConstantModifier(pipeline_name, c2),
+                _CalibrationConstantModifier(pipeline_name, c1, columns=columns),
+                _CalibrationConstantModifier(pipeline_name, c2, columns=columns),
             ],
             configuration=base_config,
             plugin_configuration=base_plugins,
         )
         sim.step()
 
-        joint_calibration = self._joint_calibration([c1, c2], effect_type)
+        joint_calibration = self._joint_per_column([c1, c2], effect_type, columns)
         actual = sim.get_population(pipeline_name).squeeze()
-        expected = self._expected(
-            base_value, joint_calibration, is_rate, time_step, transform, effect_type
+        expected = self._expected_per_column(
+            base_value,
+            joint_calibration,
+            is_rate,
+            time_step,
+            transform,
+            effect_type,
+            columns,
         )
-        assert np.allclose(actual, expected, atol=1e-5)
+        self._assert_close(actual, expected, columns)

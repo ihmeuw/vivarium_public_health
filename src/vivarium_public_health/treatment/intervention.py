@@ -8,7 +8,9 @@ effects on target measures.
 
 """
 
-from vivarium_public_health.causal_factor.effect import MultiplicativeEffect
+from typing import Literal
+
+from vivarium_public_health.causal_factor.effect import CausalFactorEffect
 from vivarium_public_health.causal_factor.exposure import CausalFactor
 from vivarium_public_health.utilities import EntityString, TargetString
 
@@ -51,12 +53,12 @@ class Intervention(CausalFactor):
         super().__init__(intervention)
 
 
-class InterventionEffect(MultiplicativeEffect):
+class InterventionEffect(CausalFactorEffect):
     """A model for the effect of an intervention on an affected
     entity's target measure.
 
     This is a specialization of
-    :class:`~vivarium_public_health.causal_factor.effect.MultiplicativeEffect`
+    :class:`~vivarium_public_health.causal_factor.effect.CausalFactorEffect`
     for interventions. It can source relative risk and population attributable
     fraction data from the artifact or from scalar configuration parameters.
 
@@ -92,7 +94,12 @@ class InterventionEffect(MultiplicativeEffect):
     # Lifecycle methods #
     #####################
 
-    def __init__(self, intervention: str, target: str):
+    def __init__(
+        self,
+        intervention: str,
+        target: str,
+        effect_type: Literal["multiplicative", "additive"] = "multiplicative",
+    ) -> None:
         """
         Parameters
         ----------
@@ -104,5 +111,9 @@ class InterventionEffect(MultiplicativeEffect):
             intervention, supplied in the form
             ``"entity_type.entity_name.measure"`` where ``entity_type``
             should be singular (e.g. ``cause`` instead of ``causes``).
+        effect_type
+            The type of effect model to use, either "multiplicative" or "additive".
+            This determines how the effect data modifies the target measure. Default
+            is "multiplicative".
         """
-        super().__init__(intervention, target)
+        super().__init__(intervention, target, effect_type)

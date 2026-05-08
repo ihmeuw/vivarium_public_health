@@ -1,3 +1,10 @@
+**5.1.8 - 05/08/26**
+
+- Feature: Enable additive effects in addition to multiplicative effects 
+- Refactor: Rename internal CausalFactorEffect methods for clarity
+- Feature: enable risk-affected pipelines to modify multi-column attribute pipelines
+- Minor bugfixes
+
 **5.1.7 - 04/30/26**
 
 - Add disease tutorial

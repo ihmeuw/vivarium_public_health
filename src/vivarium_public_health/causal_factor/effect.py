@@ -13,7 +13,7 @@ import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from importlib import import_module
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 import pandas as pd
@@ -103,35 +103,40 @@ class CausalFactorEffect(Component, ABC):
 
             {causal_factor_effect_name}:
                 data_sources:
-                    relative_risk:
-                        Source for relative risk data. Default is the artifact
-                        key ``{causal_factor}.relative_risk``. Can also be:
+                    effect:
+                        Source for effect data. Default is the artifact
+                        key ``{causal_factor}.effect``. Can also be:
                         - A scalar value (e.g., ``1.5``)
                         - A scipy.stats distribution name (e.g., ``"uniform"``)
                           with parameters in ``data_source_parameters``
-                    population_attributable_fraction:
-                        Source for PAF data. Default is the artifact key
-                        ``{causal_factor}.population_attributable_fraction``. Used to
-                        adjust the target measure to account for the portion
-                        attributable to this causal factor.
+                    calibration_constant:
+                        Source for calibration constant data. Default is the
+                        artifact key ``{causal_factor}.calibration_constant``.
+                        Used to adjust the target measure to account for the
+                        portion attributable to this causal factor.
                 data_source_parameters:
-                    relative_risk: dict
+                    effect: dict
                         Parameters for scipy.stats distributions when using
-                        a distribution name as the ``relative_risk`` source.
+                        a distribution name as the ``effect`` source.
                         For example, ``{"loc": 1.0, "scale": 0.5}`` for a
                         uniform distribution.
         """
         return {
             self.name: {
                 "data_sources": {
-                    self.effect_type: f"{self.causal_factor}.{self.effect_type}",
-                    "population_attributable_fraction": f"{self.causal_factor}.population_attributable_fraction",
+                    "effect": f"{self.causal_factor}.effect",
+                    "calibration_constant": f"{self.causal_factor}.calibration_constant",
                 },
                 "data_source_parameters": {
-                    self.effect_type: {},
+                    "effect": {},
                 },
             }
         }
+
+    @property
+    def effect_parameters(self) -> dict[str, Any]:
+        """Effect parameters for this component."""
+        return self.configuration.data_source_parameters.effect.to_dict()
 
     @property
     def is_exposure_categorical(self) -> bool:
@@ -142,23 +147,16 @@ class CausalFactorEffect(Component, ABC):
             "unordered_polytomous",
         ]
 
-    @property
-    @abstractmethod
-    def effect_type(self) -> str:
-        """The type of effect data to use for this causal factor effect."""
-        ...
-
-    @property
-    @abstractmethod
-    def calibration_constant_type(self) -> str:
-        """The type of calibration constant data to use for this causal factor effect."""
-        ...
-
     #####################
     # Lifecycle methods #
     #####################
 
-    def __init__(self, causal_factor: str, target: str):
+    def __init__(
+        self,
+        causal_factor: str,
+        target: str,
+        effect_type: Literal["multiplicative", "additive"] = "multiplicative",
+    ):
         """
 
         Parameters
@@ -171,17 +169,24 @@ class CausalFactorEffect(Component, ABC):
             Type, name, and target measure of entity to be affected by causal factor,
             supplied in the form "entity_type.entity_name.measure"
             where entity_type should be singular (e.g., cause instead of causes).
+        effect_type
+            The type of effect model to use, either "multiplicative" or "additive".
+            This determines how the effect data modifies the target measure.
         """
         super().__init__()
         self.causal_factor = EntityString(causal_factor)
         self.target = TargetString(target)
+        self.effect_type = effect_type
 
         self._exposure_distribution_type = None
 
         self.exposure_name = f"{self.causal_factor.name}.exposure"
         self.target_name = f"{self.target.name}.{self.target.measure}"
+        effect_type_name = (
+            "relative_risk" if self.effect_type == "multiplicative" else "additive_effect"
+        )
         self.effect_name = (
-            f"{self.causal_factor.name}_on_{self.target_name}.{self.effect_type}"
+            f"{self.causal_factor.name}_on_{self.target_name}.{effect_type_name}"
         )
 
     def setup(self, builder: Builder) -> None:
@@ -249,7 +254,7 @@ class CausalFactorEffect(Component, ABC):
             The calibration constant data.
         """
         return self.get_filtered_data(
-            builder, self.configuration.data_sources[self.calibration_constant_type]
+            builder, self.configuration.data_sources.calibration_constant
         )
 
     def get_distribution_type(self, builder: Builder) -> str:
@@ -291,21 +296,18 @@ class CausalFactorEffect(Component, ABC):
         if configuration is None:
             configuration = self.configuration
 
-        effect_source = configuration.data_sources[self.effect_type]
-        effect_dist_parameters = configuration.data_source_parameters[
-            self.effect_type
-        ].to_dict()
+        effect_source = configuration.data_sources.effect
 
         if isinstance(effect_source, str):
             try:
                 distribution = getattr(import_module("scipy.stats"), effect_source)
                 rng = np.random.default_rng(builder.randomness.get_seed(self.name))
-                effect_data = distribution(**effect_dist_parameters).ppf(rng.random())
+                effect_data = distribution(**self.effect_parameters).ppf(rng.random())
             except AttributeError:
                 effect_data = self.get_filtered_data(builder, effect_source)
             except TypeError:
                 raise ConfigurationError(
-                    f"Parameters {effect_dist_parameters} are not valid for distribution {effect_source}."
+                    f"Parameters {self.effect_parameters} are not valid for distribution {effect_source}."
                 )
         else:
             effect_data = self.get_filtered_data(builder, effect_source)
@@ -372,7 +374,7 @@ class CausalFactorEffect(Component, ABC):
         if not isinstance(effect_data, pd.DataFrame):
             if self._exposure_distribution_type != "dichotomous":
                 raise ValueError(
-                    f"{self.effect_type} data for categorical exposure must be a DataFrame unless the "
+                    f"Effect data for categorical exposure must be a DataFrame unless the "
                     f"exposure distribution is dichotomous. Found type {type(effect_data)} with "
                     f"exposure distribution type {self._exposure_distribution_type}."
                 )
@@ -548,35 +550,3 @@ class CausalFactorEffect(Component, ABC):
                 f"component named '{self.causal_factor}'."
             )
         return causal_factor_exposure_component
-
-
-class MultiplicativeEffect(CausalFactorEffect, ABC):
-    """A multiplicative effect model, where the effect data represents a relative risk
-    that is multiplied by the target measure.
-    """
-
-    @property
-    def effect_type(self) -> str:
-        """The type of effect data to use for this multiplicative effect."""
-        return "relative_risk"
-
-    @property
-    def calibration_constant_type(self) -> str:
-        """The type of calibration constant data to use for this multiplicative effect."""
-        return "population_attributable_fraction"
-
-
-class AdditiveEffect(CausalFactorEffect, ABC):
-    """An additive effect model, where the effect data represents an additive effect
-    that is added to the target measure.
-    """
-
-    @property
-    def effect_type(self) -> str:
-        """The type of effect data to use for this additive effect."""
-        return "additive_effect"
-
-    @property
-    def calibration_constant_type(self) -> str:
-        """The type of calibration constant data to use for this additive effect."""
-        return "calibration_constant"

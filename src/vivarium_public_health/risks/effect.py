@@ -9,7 +9,8 @@ exposure models and disease models.
 """
 
 from collections.abc import Callable
-from typing import Any
+from functools import partial
+from typing import Any, Literal
 
 import numpy as np
 import pandas as pd
@@ -17,14 +18,15 @@ import scipy
 from layered_config_tree import LayeredConfigTree
 from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import LookupTable
+from vivarium.types import DataInput
 
 from vivarium_public_health.causal_factor.distributions import MissingDataError
-from vivarium_public_health.causal_factor.effect import MultiplicativeEffect
+from vivarium_public_health.causal_factor.effect import CausalFactorEffect
 from vivarium_public_health.risks import Risk
 from vivarium_public_health.utilities import EntityString, TargetString
 
 
-class RiskEffect(MultiplicativeEffect):
+class RiskEffect(CausalFactorEffect):
     """A component to model the effect of a risk factor on an affected entity's target rate.
 
     This component can source data either from builder.data or from parameters
@@ -54,15 +56,96 @@ class RiskEffect(MultiplicativeEffect):
         return f"risk_effect.{risk.name}_on_{target}"
 
     @property
+    def configuration_defaults(self) -> dict[str, Any]:
+        """Default configuration values for this component.
+
+        The ``effect`` and ``calibration_constant`` keys are the "real" keys
+        consumed by the underlying component. By default they redirect to the
+        ``relative_risk`` and ``population_attributable_fraction`` keys, which
+        in turn default to the corresponding artifact keys. Users can override
+        either layer: configure ``relative_risk`` / ``population_attributable_fraction``
+        to keep the redirect, or configure ``effect`` / ``calibration_constant``
+        directly to bypass it.
+
+        Configuration structure::
+
+            {risk_effect_name}:
+                data_sources:
+                    effect:
+                        Source for effect data. Defaults to the
+                        ``relative_risk`` key below. Override directly to
+                        bypass the relative-risk redirect.
+                    calibration_constant:
+                        Source for calibration constant data. Defaults to the
+                        ``population_attributable_fraction`` key below.
+                        Override directly to bypass the PAF redirect.
+                    relative_risk:
+                        Source for relative risk data. Default is the artifact
+                        key ``{risk}.relative_risk``. Can also be:
+                        - A scalar value (e.g., ``1.5``)
+                        - A scipy.stats distribution name (e.g., ``"uniform"``)
+                          with parameters in ``data_source_parameters``
+                    population_attributable_fraction:
+                        Source for PAF data. Default is the artifact key
+                        ``{risk}.population_attributable_fraction``. Used to
+                        adjust the target measure to account for the portion
+                        attributable to this risk.
+                data_source_parameters:
+                    effect: dict
+                        Defaults to the ``relative_risk`` parameters below.
+                    relative_risk: dict
+                        Parameters for scipy.stats distributions when using
+                        a distribution name as the ``relative_risk`` source.
+                        For example, ``{"loc": 1.0, "scale": 0.5}`` for a
+                        uniform distribution.
+        """
+
+        def _redirect_source(builder: Builder, key: str) -> DataInput:
+            """Redirect data source to the appropriate configuration key."""
+            return self.get_data(builder, self.configuration.data_sources[key])
+
+        return {
+            self.name: {
+                "data_sources": {
+                    "effect": partial(_redirect_source, key="relative_risk"),
+                    "calibration_constant": partial(
+                        _redirect_source,
+                        key="population_attributable_fraction",
+                    ),
+                    "relative_risk": f"{self.risk}.relative_risk",
+                    "population_attributable_fraction": f"{self.risk}.population_attributable_fraction",
+                },
+                "data_source_parameters": {
+                    "effect": {},
+                    "relative_risk": {},
+                },
+            }
+        }
+
+    @property
     def risk(self) -> str:
         """The type and name of a risk, specified as "type.name". Type is singular."""
         return self.causal_factor
+
+    @property
+    def effect_parameters(self) -> dict[str, Any]:
+        """Effect parameters for this component."""
+        params = (
+            self.configuration.data_source_parameters.effect
+            or self.configuration.data_source_parameters.relative_risk
+        )
+        return params.to_dict()
 
     #####################
     # Lifecycle methods #
     #####################
 
-    def __init__(self, risk: str, target: str):
+    def __init__(
+        self,
+        risk: str,
+        target: str,
+        effect_type: Literal["multiplicative", "additive"] = "multiplicative",
+    ) -> None:
         """
 
         Parameters
@@ -75,8 +158,12 @@ class RiskEffect(MultiplicativeEffect):
             Type, name, and target rate of entity to be affected by risk factor,
             supplied in the form "entity_type.entity_name.measure"
             where entity_type should be singular (e.g., cause instead of causes).
+        effect_type
+            The type of effect model to use, either "multiplicative" or "additive".
+            This determines how the effect data modifies the target rate. Default
+            is "multiplicative".
         """
-        super().__init__(risk, target)
+        super().__init__(risk, target, effect_type)
 
 
 class NonLogLinearRiskEffect(RiskEffect):
@@ -99,39 +186,6 @@ class NonLogLinearRiskEffect(RiskEffect):
        target rate.
 
     """
-
-    ##############
-    # Properties #
-    ##############
-
-    @property
-    def configuration_defaults(self) -> dict[str, Any]:
-        """Default configuration values for this component.
-
-        Configuration structure::
-
-            {risk_effect_name}:
-                data_sources:
-                    relative_risk:
-                        Source for relative risk data. Default is the artifact
-                        key ``{risk}.relative_risk``. The data must be a
-                        DataFrame with a numeric ``parameter`` column containing
-                        exposure thresholds and a ``value`` column with the
-                        corresponding relative risks.
-                    population_attributable_fraction:
-                        Source for PAF data. Default is the artifact key
-                        ``{risk}.population_attributable_fraction``. Used to
-                        adjust the target rate to account for the portion
-                        attributable to this risk.
-        """
-        return {
-            self.name: {
-                "data_sources": {
-                    "relative_risk": f"{self.causal_factor}.relative_risk",
-                    "population_attributable_fraction": f"{self.causal_factor}.population_attributable_fraction",
-                },
-            }
-        }
 
     #################
     # Setup methods #
