@@ -512,8 +512,6 @@ class _ExampleArtifact:
 
     def write(self, entity_key: str, data: object) -> None:
         self._overrides[entity_key] = data
-
-
 class ExampleArtifactManager(ArtifactManager):
     """Artifact manager that serves example data without requiring an HDF file.
 
