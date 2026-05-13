@@ -6,8 +6,8 @@ column layout expected by :mod:`vivarium_public_health` components.
 The data uses uniform rates and round population counts so that tutorial
 output is easy to follow.  Age bins follow standard GBD definitions.
 
-See the :doc:`/tutorials/population` and :doc:`/tutorials/disease` tutorials
-for usage.
+See the :doc:`/tutorials/population`, :doc:`/tutorials/disease`, and
+:doc:`/tutorials/risk` tutorials for usage.
 """
 
 from collections.abc import Callable
@@ -262,6 +262,163 @@ def disease_restrictions(yld_only: bool = False) -> dict:
     return {"yld_only": yld_only}
 
 
+###########################
+# Risk factor data helpers #
+###########################
+
+
+def _build_dichotomous_table(
+    exposed_value: float,
+    unexposed_value: float,
+    extra_columns: dict[str, object] | None = None,
+) -> pd.DataFrame:
+    """Build a dichotomous (exposed/unexposed) table on the age x sex x year grid."""
+    df = get_age_sex_year_grid()
+    exposed = df.copy()
+    exposed["parameter"] = "exposed"
+    exposed["value"] = exposed_value
+    unexposed = df.copy()
+    unexposed["parameter"] = "unexposed"
+    unexposed["value"] = unexposed_value
+    result = pd.concat([exposed, unexposed], ignore_index=True)
+    if extra_columns:
+        for col, val in extra_columns.items():
+            result[col] = val
+    return result
+
+
+def risk_exposure_dichotomous(proportion_exposed: float = 0.6) -> pd.DataFrame:
+    """Return dichotomous exposure data for ``risk_factor.{name}.exposure``.
+
+    Parameters
+    ----------
+    proportion_exposed
+        The fraction of the population in the exposed category.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Columns: ``age_start``, ``age_end``, ``sex``, ``year_start``,
+        ``year_end``, ``parameter``, ``value``.
+    """
+    return _build_dichotomous_table(proportion_exposed, 1 - proportion_exposed)
+
+
+def risk_relative_risk_dichotomous(
+    rr_exposed: float = 2.0,
+    target_entity: str = "test_cause",
+    target_measure: str = "incidence_rate",
+) -> pd.DataFrame:
+    """Return dichotomous relative risk data for ``risk_factor.{name}.relative_risk``.
+
+    Parameters
+    ----------
+    rr_exposed
+        The relative risk for the exposed category.  The unexposed
+        category always has a relative risk of 1.
+    target_entity
+        The name of the affected entity (e.g., a cause name).
+    target_measure
+        The affected measure (e.g., ``"incidence_rate"``).
+
+    Returns
+    -------
+    pandas.DataFrame
+        Columns: ``age_start``, ``age_end``, ``sex``, ``year_start``,
+        ``year_end``, ``affected_entity``, ``affected_measure``,
+        ``parameter``, ``value``.
+    """
+    return _build_dichotomous_table(
+        exposed_value=rr_exposed,
+        unexposed_value=1.0,
+        extra_columns={
+            "affected_entity": target_entity,
+            "affected_measure": target_measure,
+        },
+    )
+
+
+def risk_relative_risk_continuous(
+    exposure_min: float = 1.0,
+    exposure_max: float = 9.0,
+    rr_min: float = 1.0,
+    rr_max: float = 5.0,
+    n_thresholds: int = 1000,
+    target_entity: str = "test_cause",
+    target_measure: str = "incidence_rate",
+) -> pd.DataFrame:
+    """Return continuous relative risk data for ``NonLogLinearRiskEffect``.
+
+    Builds a DataFrame with ``n_thresholds`` evenly spaced exposure
+    thresholds and linearly increasing RR values, suitable for use with
+    :class:`~vivarium_public_health.risks.effect.NonLogLinearRiskEffect`.
+
+    Parameters
+    ----------
+    exposure_min
+        Lower bound of the exposure range.
+    exposure_max
+        Upper bound of the exposure range.
+    rr_min
+        Relative risk at ``exposure_min``.
+    rr_max
+        Relative risk at ``exposure_max``.
+    n_thresholds
+        Number of exposure thresholds.
+    target_entity
+        The name of the affected entity.
+    target_measure
+        The affected measure.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Columns: ``parameter``, ``value``, ``affected_entity``,
+        ``affected_measure``, ``year_start``, ``year_end``.
+    """
+    thresholds = np.linspace(exposure_min, exposure_max, n_thresholds)
+    rr_values = np.linspace(rr_min, rr_max, n_thresholds)
+    return pd.DataFrame(
+        {
+            "parameter": thresholds,
+            "value": rr_values,
+            "affected_entity": target_entity,
+            "affected_measure": target_measure,
+            "year_start": _YEAR_START,
+            "year_end": _YEAR_START + 1,
+        }
+    )
+
+
+def risk_paf(
+    paf_value: float = 0.0,
+    target_entity: str = "test_cause",
+    target_measure: str = "incidence_rate",
+) -> pd.DataFrame:
+    """Return PAF data for ``risk_factor.{name}.population_attributable_fraction``.
+
+    Parameters
+    ----------
+    paf_value
+        The population attributable fraction value.
+    target_entity
+        The name of the affected entity.
+    target_measure
+        The affected measure.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Columns: ``age_start``, ``age_end``, ``sex``, ``year_start``,
+        ``year_end``, ``affected_entity``, ``affected_measure``, ``value``.
+    """
+    df = get_age_sex_year_grid()
+    df["affected_entity"] = target_entity
+    df["affected_measure"] = target_measure
+    df["value"] = paf_value
+    return df
+
+
 ############################
 # Example artifact manager #
 ############################
@@ -289,6 +446,11 @@ _ARTIFACT_DATA: dict[str, object] = {
     "cause.diarrheal_diseases.incidence_rate": lambda: build_cause_table(0.5),
     # Remission of 1.0/person-year balances infected/susceptible pools for demos.
     "cause.diarrheal_diseases.remission_rate": lambda: build_cause_table(1.0),
+    # Risk factor data - dichotomous distribution with 60% exposed by default.
+    "risk_factor.test_risk.distribution": lambda: "dichotomous",
+    "risk_factor.test_risk.exposure": risk_exposure_dichotomous,
+    "risk_factor.test_risk.relative_risk": risk_relative_risk_dichotomous,
+    "risk_factor.test_risk.population_attributable_fraction": lambda: risk_paf(),
 }
 
 
@@ -303,6 +465,19 @@ _CAUSE_DEFAULTS: dict[str, Callable[[], Any]] = {
     "incidence_rate": build_cause_table,
     "disability_weight": disease_disability_weight,
     "restrictions": disease_restrictions,
+}
+
+# Default risk factor data keyed by measure name.  _ExampleArtifact uses these
+# as fallbacks for any ``risk_factor.{name}.{measure}`` key not in _ARTIFACT_DATA.
+# NOTE: The "relative_risk" fallback always targets "test_cause" because the
+# callable is entity-unaware.  For other targets, register explicit artifact data
+# or use scalar/DataFrame overrides via data_sources configuration.
+_RISK_DEFAULTS: dict[str, Callable[[], Any]] = {
+    "distribution": lambda: "dichotomous",
+    "exposure": risk_exposure_dichotomous,
+    "relative_risk": risk_relative_risk_dichotomous,
+    "population_attributable_fraction": risk_paf,
+    "tmred": lambda: {"distribution": "uniform", "min": 0, "max": 0, "inverted": False},
 }
 
 
@@ -324,6 +499,14 @@ class _ExampleArtifact:
             measure = parts[2]
             if measure in _CAUSE_DEFAULTS:
                 value = _CAUSE_DEFAULTS[measure]
+                return value() if callable(value) else value
+        # Fall back to default risk data for risk_factor.{name}.{measure} keys.
+        # NOTE: Only the "risk_factor" prefix is supported here;
+        # "alternative_risk_factor" is not currently handled.
+        if len(parts) == 3 and parts[0] == "risk_factor":
+            measure = parts[2]
+            if measure in _RISK_DEFAULTS:
+                value = _RISK_DEFAULTS[measure]
                 return value() if callable(value) else value
         raise KeyError(f"No example data for artifact key {entity_key!r}")
 

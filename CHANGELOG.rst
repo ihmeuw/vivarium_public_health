@@ -1,3 +1,7 @@
+**5.1.8 - 05/13/26**
+
+- Add risk factor tutorial
+
 **5.1.7 - 04/30/26**
 
 - Add disease tutorial
