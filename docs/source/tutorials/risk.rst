@@ -28,11 +28,10 @@ Overview
 
 A risk model in ``vivarium_public_health`` has two primary components:
 
-**Exposure** - the risk factor and how simulants are exposed to it:
-
-- :class:`~vivarium_public_health.risks.base_risk.Risk` - assigns each
-  simulant an exposure category (for dichotomous/polytomous risks) or a
-  continuous exposure value.
+**Exposure** - the risk factor and how simulants are exposed to it.
+:class:`~vivarium_public_health.risks.base_risk.Risk` assigns each
+simulant an exposure category (for dichotomous/polytomous risks) or a
+continuous exposure value.
 
 **Effect** - how exposure modifies a target rate or measure. A *target* is a
 specific rate modified by the risk, identified by an entity and a measure
@@ -49,7 +48,7 @@ This tutorial focuses on the exposure side: how the
 Common Setup
 ------------
 
-Every code example in this tutorial uses imports and helpers shown below.
+Every code example in this tutorial uses the imports and helpers shown below.
 To run any example in a standalone script, include all of these at the top:
 
 .. testcode::
@@ -249,7 +248,7 @@ draw:
    n_exposed = (pop["test_risk.exposure"] == "exposed").sum()
    proportion = n_exposed / len(pop)
    # Approximately 40% should be exposed.
-   print(f"Proportion exposed near 0.4: {0.35 < proportion < 0.45}")
+   print(f"Proportion exposed near 0.4: {np.isclose(proportion, 0.4, atol=0.02)}")
 
 .. testoutput::
 
@@ -278,5 +277,5 @@ Configuration Summary
 
    For more advanced use cases - including polytomous risks, coverage gaps,
    alternative risk factors, and parameterized effect distributions - see
-   the :doc:`risk_exposure` tutorial.
+   the :doc:`non_standard_risk` tutorial.
 

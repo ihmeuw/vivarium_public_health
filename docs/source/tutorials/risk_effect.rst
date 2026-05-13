@@ -27,9 +27,10 @@ For how simulants are assigned exposure values, see the :doc:`risk` tutorial.
 Overview
 --------
 
-A risk effect modifies a *target* rate based on exposure. A *target* is a
-specific rate modified by the risk, identified by an entity and a measure
-(e.g., ``cause.lung_cancer.incidence_rate``).
+A risk effect modifies a *target* rate based on exposure values of that risk.
+A *target* is identified by an entity type, entity name, and measure in dotted
+form: ``{entity_type}.{entity_name}.{measure}`` (e.g.,
+``cause.lung_cancer.incidence_rate``).
 
 There are two effect components:
 
@@ -252,7 +253,7 @@ at a higher rate than unexposed simulants:
 
    # With RR=5, the ratio of infection rates should be approximately 5.
    ratio = exposed_infection_rate / unexposed_infection_rate
-   print(f"Rate ratio near 5: {3.0 < ratio < 7.0}")
+   print(f"Rate ratio near 5: {np.isclose(ratio, 5, rtol=0.15)}")
 
 .. testoutput::
 
@@ -349,13 +350,13 @@ target rate independently:
 
    # Combined RR is 3*2=6, so both-exposed vs neither should have ratio near 6.
    both_ratio = both_rate / neither_rate
-   print(f"Both-exposed ratio near 6: {4.5 < both_ratio < 7.5}")
+   print(f"Both-exposed ratio near 6: {np.isclose(both_ratio, 6, rtol=0.2)}")
    # Smoking-only RR is 3, so ratio should be near 3.
    smoking_ratio = smoking_only_rate / neither_rate
-   print(f"Smoking-only ratio near 3: {2.0 < smoking_ratio < 4.0}")
+   print(f"Smoking-only ratio near 3: {np.isclose(smoking_ratio, 3, rtol=0.1)}")
    # Air-pollution-only RR is 2, so ratio should be near 2.
    pollution_ratio = pollution_only_rate / neither_rate
-   print(f"Pollution-only ratio near 2: {1.5 < pollution_ratio < 2.5}")
+   print(f"Pollution-only ratio near 2: {np.isclose(pollution_ratio, 2, rtol=0.1)}")
 
 .. testoutput::
 
@@ -426,7 +427,7 @@ baseline is scaled down to compensate.
 
    # The ratio of rates should be approximately (1 - PAF) = 0.7.
    ratio = rate_with_paf / rate_no_paf
-   print(f"Rate ratio near (1 - PAF): {0.6 < ratio < 0.8}")
+   print(f"Rate ratio near (1 - PAF): {np.isclose(ratio, 0.7, atol=0.05)}")
 
 .. testoutput::
 
@@ -611,4 +612,4 @@ Configuration Summary
 
    For more advanced use cases - including polytomous risks, coverage gaps,
    alternative risk factors, and parameterized effect distributions - see
-   the :doc:`risk_exposure` tutorial.
+   the :doc:`non_standard_risk` tutorial.
