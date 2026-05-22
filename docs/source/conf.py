@@ -200,6 +200,12 @@ intersphinx_mapping = {
     "pandas": ("https://pandas.pydata.org/docs/", None),
     "tables": ("https://www.pytables.org/", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
+    "vivarium-engine": ("https://vivarium-engine.readthedocs.io/en/latest/", None),
+    "vivarium-config-tree": (
+        "https://vivarium-config-tree.readthedocs.io/en/latest/",
+        None,
+    ),
+    # Backwards compatibility for legacy docs
     "vivarium": ("https://vivarium.readthedocs.io/en/latest/", None),
 }
 
