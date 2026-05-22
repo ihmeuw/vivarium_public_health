@@ -1,3 +1,7 @@
+**5.1.9 - 05/22/26**
+
+- Add new intersphinx mappings for vivarium-engine and vivarium-config-tree
+
 **5.1.8 - 05/13/26**
 
 - Add risk factor tutorial
