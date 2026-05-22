@@ -6,8 +6,8 @@ column layout expected by :mod:`vivarium_public_health` components.
 The data uses uniform rates and round population counts so that tutorial
 output is easy to follow.  Age bins follow standard GBD definitions.
 
-See the :doc:`/tutorials/population`, :doc:`/tutorials/disease`, and
-:doc:`/tutorials/risk` tutorials for usage.
+See the :doc:`/tutorials/population`, :doc:`/tutorials/disease`,
+:doc:`/tutorials/risk`, and :doc:`/tutorials/treatment` tutorials for usage.
 """
 
 from collections.abc import Callable
@@ -480,6 +480,15 @@ _RISK_DEFAULTS: dict[str, Callable[[], Any]] = {
     "tmred": lambda: {"distribution": "uniform", "min": 0, "max": 0, "inverted": False},
 }
 
+# Default intervention data keyed by measure name.  _ExampleArtifact uses these
+# as fallbacks for any ``intervention.{name}.{measure}`` key not in _ARTIFACT_DATA.
+_INTERVENTION_DEFAULTS: dict[str, Callable[[], Any]] = {
+    "distribution": lambda: "dichotomous",
+    "exposure": risk_exposure_dichotomous,
+    "relative_risk": risk_relative_risk_dichotomous,
+    "population_attributable_fraction": risk_paf,
+}
+
 
 class _ExampleArtifact:
     """Serve pre-built example DataFrames by artifact key."""
@@ -507,6 +516,12 @@ class _ExampleArtifact:
             measure = parts[2]
             if measure in _RISK_DEFAULTS:
                 value = _RISK_DEFAULTS[measure]
+                return value() if callable(value) else value
+        # Fall back to default intervention data for intervention.{name}.{measure} keys.
+        if len(parts) == 3 and parts[0] == "intervention":
+            measure = parts[2]
+            if measure in _INTERVENTION_DEFAULTS:
+                value = _INTERVENTION_DEFAULTS[measure]
                 return value() if callable(value) else value
         raise KeyError(f"No example data for artifact key {entity_key!r}")
 
