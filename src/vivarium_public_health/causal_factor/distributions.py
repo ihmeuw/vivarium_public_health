@@ -621,17 +621,28 @@ class DichotomousDistribution(CausalFactorDistribution):
     Support optional rebinning of polytomous exposure data.
     """
 
+    @staticmethod
+    def get_exposed(causal_factor_type: str) -> str:
+        """The name of the exposed category for the given causal factor type."""
+        return "covered" if causal_factor_type == "intervention" else "exposed"
+
+    @staticmethod
+    def get_unexposed(causal_factor_type: str) -> str:
+        """The name of the unexposed category for the given causal factor type."""
+        return "uncovered" if causal_factor_type == "intervention" else "unexposed"
+
     @property
     def exposed(self) -> str:
         """The name of the exposed category."""
-        return "covered" if self.causal_factor.type == "intervention" else "exposed"
+        return self.get_exposed(self.causal_factor.type)
 
     @property
     def unexposed(self) -> str:
         """The name of the unexposed category."""
-        return "uncovered" if self.causal_factor.type == "intervention" else "unexposed"
+        return self.get_unexposed(self.causal_factor.type)
 
-    def rename_deprecated_categories(self, data: pd.DataFrame) -> pd.DataFrame:
+    @staticmethod
+    def rename_deprecated_categories(causal_factor_type: str, data: pd.DataFrame) -> pd.DataFrame:
         """Rename deprecated cat1/cat2 parameter values to exposed/unexposed.
 
         If the data contains ``'cat1'`` in its ``'parameter'`` column, the
@@ -642,6 +653,8 @@ class DichotomousDistribution(CausalFactorDistribution):
 
         Parameters
         ----------
+        causal_factor_type
+            The type of the causal factor (e.g. ``"intervention"`` or ``"risk_factor"``).
         data
             A DataFrame with a ``'parameter'`` column.
 
@@ -652,17 +665,17 @@ class DichotomousDistribution(CausalFactorDistribution):
         if "cat1" not in data["parameter"].values:
             return data
 
-        if self.causal_factor.type != "intervention":
+        exposed = DichotomousDistribution.get_exposed(causal_factor_type)
+        unexposed = DichotomousDistribution.get_unexposed(causal_factor_type)
+        if causal_factor_type != "intervention":
             warnings.warn(
                 "Using 'cat1' and 'cat2' for dichotomous exposure is deprecated "
                 "and will be removed in a future release. Use "
-                f"'{self.exposed}' and '{self.unexposed}' instead.",
+                f"'{exposed}' and '{unexposed}' instead.",
                 FutureWarning,
                 stacklevel=3,
             )
-        data["parameter"] = data["parameter"].replace(
-            {"cat1": self.exposed, "cat2": self.unexposed}
-        )
+        data["parameter"] = data["parameter"].replace({"cat1": exposed, "cat2": unexposed})
         return data
 
     #####################
@@ -785,7 +798,7 @@ class DichotomousDistribution(CausalFactorDistribution):
         # rebin exposure categories
         self.validate_rebin_source(builder, exposure_data)
         rebin_exposed_categories = set(self.configuration["rebinned_exposed"])
-        exposure_data = self.rename_deprecated_categories(exposure_data)
+        exposure_data = self.rename_deprecated_categories(self.causal_factor.type, exposure_data)
         if rebin_exposed_categories:
             exposure_data = self._rebin_exposure_data(exposure_data, rebin_exposed_categories)
 
