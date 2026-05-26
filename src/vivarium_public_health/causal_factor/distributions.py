@@ -564,14 +564,15 @@ class PolytomousDistribution(CausalFactorDistribution):
             A lookup table for the exposure parameters.
         """
         data = self.get_exposure_data(builder)
-        value_columns = self.get_exposure_value_columns(data)
 
         if isinstance(data, pd.DataFrame):
-            data = pivot_categorical(data, "parameter")
+            if "parameter" in data.index.names:
+                data = data.reset_index("parameter")
+            index_cols = [c for c in data.columns if c not in ("parameter", "value")]
+            data = data.pivot(index=index_cols, columns="parameter", values="value")
+            data.columns.name = None
 
-        return self.build_lookup_table(
-            builder, "exposure_parameters", data_source=data, value_columns=value_columns
-        )
+        return self.build_lookup_table(builder, "exposure_parameters", data_source=data)
 
     ##################################
     # Pipeline sources and modifiers #
@@ -645,13 +646,7 @@ class DichotomousDistribution(CausalFactorDistribution):
     def rename_deprecated_categories(
         causal_factor_type: str, data: pd.DataFrame
     ) -> pd.DataFrame:
-        """Rename deprecated cat1/cat2 parameter values to exposed/unexposed.
-
-        If the data contains ``'cat1'`` in its ``'parameter'`` column, the
-        values are replaced with the distribution's :attr:`exposed` and
-        :attr:`unexposed` names.  A :class:`FutureWarning` is emitted for
-        non-intervention causal factors to signal that the old names will be
-        removed in a future release.
+        """Rename deprecated cat1/cat2 column names to exposed/unexposed.
 
         Parameters
         ----------
@@ -664,12 +659,9 @@ class DichotomousDistribution(CausalFactorDistribution):
         -------
             The DataFrame with renamed parameter values (modified in place).
         """
-        if "cat1" not in data["parameter"].values:
-            return data
-
-        exposed = DichotomousDistribution.get_exposed(causal_factor_type)
-        unexposed = DichotomousDistribution.get_unexposed(causal_factor_type)
-        if causal_factor_type != "intervention":
+        if "cat1" in data.columns or "cat2" in data.columns:
+            exposed = DichotomousDistribution.get_exposed(causal_factor_type)
+            unexposed = DichotomousDistribution.get_unexposed(causal_factor_type)
             warnings.warn(
                 "Using 'cat1' and 'cat2' for dichotomous exposure is deprecated "
                 "and will be removed in a future release. Use "
@@ -677,7 +669,7 @@ class DichotomousDistribution(CausalFactorDistribution):
                 FutureWarning,
                 stacklevel=3,
             )
-        data["parameter"] = data["parameter"].replace({"cat1": exposed, "cat2": unexposed})
+            data = data.rename(columns={"cat1": exposed, "cat2": unexposed})
         return data
 
     #####################
@@ -768,8 +760,8 @@ class DichotomousDistribution(CausalFactorDistribution):
         data = self.get_exposure_data(builder)
 
         if isinstance(data, pd.DataFrame):
-            any_negatives = (data[DEFAULT_VALUE_COLUMN] < 0).any().any()
-            any_over_one = (data[DEFAULT_VALUE_COLUMN] > 1).any().any()
+            any_negatives = (data < 0).any().any()
+            any_over_one = (data > 1).any().any()
             if any_negatives or any_over_one:
                 raise ValueError(
                     f"All exposures must be in the range [0, 1] for {self.causal_factor}"
@@ -789,25 +781,27 @@ class DichotomousDistribution(CausalFactorDistribution):
 
         Returns
         -------
-            The (possibly rebinned) exposure data for the exposed
-            category.
+            The (possibly rebinned) exposure data with lookup attributes on
+            the row index and exposure categories on the columns.
         """
         exposure_data = super().get_exposure_data(builder)
 
         if isinstance(exposure_data, (int, float)):
             return exposure_data
 
-        # rebin exposure categories
         self.validate_rebin_source(builder, exposure_data)
         rebin_exposed_categories = set(self.configuration["rebinned_exposed"])
-        exposure_data = self.rename_deprecated_categories(
-            self.causal_factor.type, exposure_data
-        )
         if rebin_exposed_categories:
             exposure_data = self._rebin_exposure_data(exposure_data, rebin_exposed_categories)
 
-        exposure_data = exposure_data[exposure_data["parameter"] == self.exposed]
-        return exposure_data.drop(columns="parameter")
+        if "parameter" in exposure_data.index.names:
+            exposure_data = exposure_data.reset_index("parameter")
+        index_cols = [c for c in exposure_data.columns if c not in ("parameter", "value")]
+        exposure_data = exposure_data.pivot(
+            index=index_cols, columns="parameter", values="value"
+        )
+        exposure_data.columns.name = None
+        return self.rename_deprecated_categories(self.causal_factor.type, exposure_data)
 
     def _rebin_exposure_data(
         self, exposure_data: pd.DataFrame, rebin_exposed_categories: set
@@ -893,7 +887,10 @@ class DichotomousDistribution(CausalFactorDistribution):
         -------
             A series of exposure probabilities.
         """
-        return self.exposure_table(index)
+        result = self.exposure_table(index)
+        if isinstance(result, pd.DataFrame):
+            return result[self.exposed]
+        return result
 
     def exposure_ppf(self, index: pd.Index) -> pd.Series:
         """Assign each simulant to the exposed or unexposed category based on propensity.

@@ -12,8 +12,9 @@ calibration constants.
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
-from typing import Any, Literal, overload
+from typing import Any, Literal
 from typing import SupportsFloat as Numeric
+from typing import overload
 
 import pandas as pd
 from vivarium import Component
@@ -48,6 +49,7 @@ def register_risk_affected_attribute_producer(
 ) -> None:
     ...
 
+
 @overload
 def register_risk_affected_attribute_producer(
     builder: Builder,
@@ -59,6 +61,7 @@ def register_risk_affected_attribute_producer(
     columns: list[str] = ...,
 ) -> None:
     ...
+
 
 def register_risk_affected_attribute_producer(
     builder: Builder,
@@ -120,7 +123,14 @@ def register_risk_affected_attribute_producer(
         None if the pipeline produces a Series.
     """
     _RiskAffectedPipeline.create(
-        builder, name, source, effect_type, required_resources, post_processors, columns, is_rate=False
+        builder,
+        name,
+        source,
+        effect_type,
+        required_resources,
+        post_processors,
+        columns,
+        is_rate=False,
     )
 
 
@@ -136,6 +146,7 @@ def register_risk_affected_rate_producer(
 ) -> None:
     ...
 
+
 @overload
 def register_risk_affected_rate_producer(
     builder: Builder,
@@ -147,6 +158,8 @@ def register_risk_affected_rate_producer(
     columns: list[str] = ...,
 ) -> None:
     ...
+
+
 def register_risk_affected_rate_producer(
     builder: Builder,
     name: str,
@@ -207,7 +220,14 @@ def register_risk_affected_rate_producer(
         None if the pipeline produces a Series.
     """
     _RiskAffectedPipeline.create(
-        builder, name, source, effect_type, required_resources, post_processors, columns, is_rate=True
+        builder,
+        name,
+        source,
+        effect_type,
+        required_resources,
+        post_processors,
+        columns,
+        is_rate=True,
     )
 
 
@@ -293,7 +313,7 @@ class _RiskAffectedPipeline(Component):
         self._is_rate = is_rate
         """``True`` if the target pipeline is a rate, ``False`` if it is an attribute.
         Selects between ``register_rate_producer`` and ``register_attribute_producer``."""
-    
+
     def setup(self, builder: Builder) -> None:
         """Register the calibration constant and target pipelines.
 
@@ -373,7 +393,9 @@ class _RiskAffectedPipeline(Component):
         """Append the mutator result to the calibration constant list."""
         calibration_constant = mutator(*args, **kwargs)
         if isinstance(calibration_constant, pd.DataFrame):
-            value_columns = self._columns if not isinstance(self._columns, str) else [self._columns]
+            value_columns = (
+                self._columns if not isinstance(self._columns, str) else [self._columns]
+            )
             index_columns = [
                 col for col in calibration_constant.columns if col not in value_columns
             ]

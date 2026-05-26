@@ -229,16 +229,11 @@ class CausalFactorEffect(Component, ABC):
             A lookup table of effect values.
         """
         effect_data = self.load_effect_data(builder)
-        effect_value_cols = None
         if self.is_exposure_categorical:
-            effect_data, effect_value_cols = self.process_categorical_data(
-                builder, effect_data
-            )
+            effect_data = self.process_categorical_data(builder, effect_data)
+
         return self.build_lookup_table(
-            builder,
-            self.effect_type,
-            data_source=effect_data,
-            value_columns=effect_value_cols,
+            builder, self.effect_type, data_source=effect_data
         )
 
     def load_calibration_constant_data(self, builder: Builder) -> LookupTableData:
@@ -345,13 +340,13 @@ class CausalFactorEffect(Component, ABC):
         return data
 
     def process_categorical_data(
-        self, builder: Builder, effect_data: str | float | pd.DataFrame
-    ) -> tuple[str | float | pd.DataFrame, list[str]]:
+        self, builder: Builder, effect_data: float | pd.DataFrame
+    ) -> pd.DataFrame:
         """Process effect data for categorical exposures.
 
         For scalar effect data with a dichotomous distribution, construct a
-        DataFrame with exposed/unexposed categories. Pivot the data to
-        wide format for use in a lookup table.
+        DataFrame with exposed/unexposed categories. Return a DataFrame with
+        lookup dimensions on the row index and exposure categories as columns.
 
         Parameters
         ----------
@@ -362,8 +357,8 @@ class CausalFactorEffect(Component, ABC):
 
         Returns
         -------
-            A tuple of the pivoted effect data and the list of value column
-            names.
+            The processed effect data, with lookup dimensions on the row
+            index and exposure categories as columns.
 
         Raises
         ------
@@ -379,24 +374,30 @@ class CausalFactorEffect(Component, ABC):
                     f"exposure distribution type {self._exposure_distribution_type}."
                 )
             causal_factor_type = self.causal_factor.type
-            cat1 = builder.data.load("population.demographic_dimensions")
-            cat1["parameter"] = DichotomousDistribution.get_exposed(causal_factor_type)
-            cat1["value"] = effect_data
-            cat2 = cat1.copy()
-            cat2["parameter"] = DichotomousDistribution.get_unexposed(causal_factor_type)
-            cat2["value"] = 1
-            effect_data = pd.concat([cat1, cat2], ignore_index=True)
+            exposed = DichotomousDistribution.get_exposed(causal_factor_type)
+            unexposed = DichotomousDistribution.get_unexposed(causal_factor_type)
+            demographic_dimensions = builder.data.load("population.demographic_dimensions")
+
+            effect_data_ = pd.DataFrame(
+                index=pd.MultiIndex.from_frame(demographic_dimensions)
+            )
+            effect_data_[exposed] = effect_data
+            effect_data_[unexposed] = 1
+            return effect_data_
+
         if "parameter" in effect_data.index.names:
             effect_data = effect_data.reset_index("parameter")
+        index_cols = [c for c in effect_data.columns if c not in ("parameter", "value")]
+        effect_data = effect_data.pivot(
+            index=index_cols, columns="parameter", values="value"
+        )
+        effect_data.columns.name = None
 
         if self._exposure_distribution_type == "dichotomous":
             effect_data = DichotomousDistribution.rename_deprecated_categories(
                 self.causal_factor.type, effect_data
             )
-
-        effect_value_cols = list(effect_data["parameter"].unique())
-        effect_data = pivot_categorical(effect_data, "parameter")
-        return effect_data, effect_value_cols
+        return effect_data
 
     # todo currently this isn't being called. we need to properly set rrs if
     #  the exposure has been rebinned
