@@ -1,6 +1,10 @@
-**5.1.9 - 05/22/26**
+**5.1.10 - 05/27/26**
 
 - Add treatment tutorial
+
+**5.1.9 - 05/22/26**
+
+- Add new intersphinx mappings for vivarium-engine and vivarium-config-tree
 
 **5.1.8 - 05/13/26**
 
