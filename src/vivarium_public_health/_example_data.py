@@ -6,8 +6,8 @@ column layout expected by :mod:`vivarium_public_health` components.
 The data uses uniform rates and round population counts so that tutorial
 output is easy to follow.  Age bins follow standard GBD definitions.
 
-See the :doc:`/tutorials/population`, :doc:`/tutorials/disease`,
-:doc:`/tutorials/risk`, and :doc:`/tutorials/treatment` tutorials for usage.
+See the :doc:`/tutorials/population`, :doc:`/tutorials/disease`, and
+:doc:`/tutorials/risk` tutorials for usage.
 """
 
 from collections.abc import Callable
@@ -17,8 +17,10 @@ from typing import Any
 import numpy as np
 import pandas as pd
 from layered_config_tree import LayeredConfigTree
+from vivarium import Component
 from vivarium.framework.artifact import ArtifactManager
 from vivarium.framework.configuration import build_simulation_configuration
+from vivarium.framework.engine import Builder
 
 #############
 # Constants #
@@ -480,15 +482,6 @@ _RISK_DEFAULTS: dict[str, Callable[[], Any]] = {
     "tmred": lambda: {"distribution": "uniform", "min": 0, "max": 0, "inverted": False},
 }
 
-# Default intervention data keyed by measure name.  _ExampleArtifact uses these
-# as fallbacks for any ``intervention.{name}.{measure}`` key not in _ARTIFACT_DATA.
-_INTERVENTION_DEFAULTS: dict[str, Callable[[], Any]] = {
-    "distribution": lambda: "dichotomous",
-    "exposure": risk_exposure_dichotomous,
-    "relative_risk": risk_relative_risk_dichotomous,
-    "population_attributable_fraction": risk_paf,
-}
-
 
 class _ExampleArtifact:
     """Serve pre-built example DataFrames by artifact key."""
@@ -516,12 +509,6 @@ class _ExampleArtifact:
             measure = parts[2]
             if measure in _RISK_DEFAULTS:
                 value = _RISK_DEFAULTS[measure]
-                return value() if callable(value) else value
-        # Fall back to default intervention data for intervention.{name}.{measure} keys.
-        if len(parts) == 3 and parts[0] == "intervention":
-            measure = parts[2]
-            if measure in _INTERVENTION_DEFAULTS:
-                value = _INTERVENTION_DEFAULTS[measure]
                 return value() if callable(value) else value
         raise KeyError(f"No example data for artifact key {entity_key!r}")
 
@@ -598,3 +585,49 @@ def make_base_config() -> LayeredConfigTree:
         layer="model_override",
     )
     return config
+
+
+class ConstantRatePipeline(Component):
+    """Register a constant-valued attribute pipeline for tutorial demonstrations.
+
+    This component creates a simple attribute pipeline with
+    ``replace_combiner`` (the default) that returns a fixed value for all
+    simulants. It is useful for demonstrating pipeline modifiers like
+    :class:`~vivarium_public_health.treatment.magic_wand.AbsoluteShift`
+    without requiring a full disease model.
+
+    Parameters
+    ----------
+    pipeline_name
+        The name of the attribute pipeline to register
+        (e.g. ``"test_cause.incidence_rate"``).
+    rate
+        The constant value the pipeline returns for every simulant.
+    """
+
+    def __init__(self, pipeline_name: str, rate: float = 0.1) -> None:
+        super().__init__()
+        self._pipeline_name = pipeline_name
+        self._rate = rate
+
+    @property
+    def name(self) -> str:
+        """The name of this component."""
+        return f"constant_rate_pipeline.{self._pipeline_name}"
+
+    def setup(self, builder: Builder) -> None:
+        """Register the constant-valued attribute pipeline.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        """
+        builder.value.register_attribute_producer(
+            self._pipeline_name,
+            source=self._source,
+        )
+
+    def _source(self, index: pd.Index) -> pd.Series:
+        """Return the constant rate for all simulants."""
+        return pd.Series(self._rate, index=index)
