@@ -227,7 +227,9 @@ class NonLogLinearRiskEffect(RiskEffect):
         MissingDataError
             If the TMRED data uses draw-level TMRELs or is not found.
         ValueError
-            If the filtered relative risk data is empty.
+            If the relative risk data fails validation (e.g. it is empty,
+            or its ``parameter`` column is non-numeric or not monotonically
+            increasing). See :meth:`validate_rr_data`.
         """
         if configuration is None:
             configuration = self.configuration
@@ -250,14 +252,6 @@ class NonLogLinearRiskEffect(RiskEffect):
         # calculate RR at TMREL
         rr_source = configuration.data_sources.relative_risk
         original_rrs = self.get_filtered_data(builder, rr_source)
-
-        if isinstance(original_rrs, pd.DataFrame) and original_rrs.empty:
-            raise ValueError(
-                f"The relative risk data for {self.causal_factor.name} affecting "
-                f"{self.target.name} {self.target.measure} is empty. This can happen "
-                "when the data contains no rows matching the affected entity and "
-                "measure of this risk effect."
-            )
 
         self.validate_rr_data(original_rrs)
 
@@ -348,9 +342,18 @@ class NonLogLinearRiskEffect(RiskEffect):
         Raises
         ------
         ValueError
-            If the ``parameter`` column is not numeric or is not
-            monotonically increasing within demographic groups.
+            If the relative risk data is empty, or if the ``parameter``
+            column is not numeric or is not monotonically increasing
+            within demographic groups.
         """
+        if rr_data.empty:
+            raise ValueError(
+                f"The relative risk data for {self.causal_factor.name} affecting "
+                f"{self.target.name} {self.target.measure} is empty. This can happen "
+                "when the data contains no rows matching the affected entity and "
+                "measure of this risk effect."
+            )
+
         # check that rr_data has numeric parameter data
         parameter_data_is_numeric = rr_data["parameter"].dtype.kind in "biufc"
         if not parameter_data_is_numeric:
