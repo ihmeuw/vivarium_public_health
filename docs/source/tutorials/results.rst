@@ -62,8 +62,15 @@ DiseaseObserver
 ---------------
 
 A :class:`~vivarium_public_health.results.DiseaseObserver` registers two
-observations for a disease model: ``person_time`` in each state and
-``transition_count`` between states.
+observations for a disease model:
+
+- ``person_time_{disease}`` - person-years spent in each disease state,
+  accumulated each time step. The ``sub_entity`` column contains the state
+  name (e.g., ``"susceptible_to_test_cause"``, ``"test_cause"``).
+- ``transition_count_{disease}`` - count of simulants transitioning between
+  states each time step. The ``sub_entity`` column contains the transition
+  name (e.g., ``"susceptible_to_test_cause_to_test_cause"``). Only
+  transitions that actually occur appear in the output.
 
 .. testcode::
 
@@ -116,10 +123,16 @@ observations for a disease model: ``person_time`` in each state and
 MortalityObserver
 -----------------
 
-A :class:`~vivarium_public_health.results.MortalityObserver` registers
-``deaths`` and ``ylls`` (years of life lost) observations, stratified by
-cause. To produce non-zero values, the simulation needs a disease state
-with non-zero ``excess_mortality_rate``.
+A :class:`~vivarium_public_health.results.MortalityObserver` registers two
+observations, stratified by cause of death:
+
+- ``deaths`` - count of simulants who died during each time step. The
+  ``entity`` column contains the cause name or ``"other_causes"``.
+- ``ylls`` - sum of remaining life expectancy at death (years of life lost).
+  Uses the same cause-level breakdown as ``deaths``.
+
+To produce non-zero values, the simulation needs a disease state with
+non-zero ``excess_mortality_rate``.
 
 .. testcode::
 
@@ -167,9 +180,16 @@ with non-zero ``excess_mortality_rate``.
 DisabilityObserver
 ------------------
 
-A :class:`~vivarium_public_health.results.DisabilityObserver` registers a
-``ylds`` (years lived with disability) observation. It requires at least one
-disease state with a non-zero ``disability_weight``.
+A :class:`~vivarium_public_health.results.DisabilityObserver` registers one
+observation:
+
+- ``ylds`` - years lived with disability, computed as each simulant's
+  disability weight multiplied by the time step duration, summed across
+  simulants. Results are broken out by cause in the ``entity`` column,
+  plus an ``"all_causes"`` total row.
+
+It requires at least one disease state with a non-zero
+``disability_weight``.
 
 .. testcode::
 
@@ -214,8 +234,12 @@ CategoricalRiskObserver
 -----------------------
 
 A :class:`~vivarium_public_health.results.CategoricalRiskObserver` registers
-a ``person_time`` observation stratified by exposure category for a
-categorical risk factor.
+one observation:
+
+- ``person_time_{risk}`` - person-years spent in each exposure category,
+  accumulated each time step. The ``sub_entity`` column contains the
+  category name (e.g., ``"exposed"``, ``"unexposed"``). The
+  ``entity_type`` is ``"rei"`` (risk/etiology/impairment).
 
 .. testcode::
 
