@@ -4,7 +4,7 @@ Treatment
 
 :mod:`vivarium_public_health` provides components for modeling treatment
 interventions in public health simulations. This tutorial covers the
-treatment module - how to model intervention coverage, how interventions
+treatment package - how to model intervention coverage, how interventions
 reduce disease rates, and how to apply direct shifts or scale-ups to
 epidemiological measures.
 
@@ -35,7 +35,7 @@ For how risk factor *exposures* modify disease outcomes, see the
 Overview
 --------
 
-The treatment module provides several components for modeling interventions:
+The treatment package provides several components for modeling interventions:
 
 **Intervention** - a dichotomous coverage model that assigns each simulant
 a covered or uncovered status.
