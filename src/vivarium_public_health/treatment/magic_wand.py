@@ -121,7 +121,7 @@ class AbsoluteShift(Component):
             The modified target measure values.
         """
         if self.config["target_value"] != "baseline":
-            affected_group_idx = self.population_view.get_population_index(
+            affected_group_idx = self.population_view.get_filtered_index(
                 index, query=f"{self.config['age_start']} <= age <= {self.config['age_end']}"
             )
             value.loc[affected_group_idx] = float(self.config["target_value"])
