@@ -1,3 +1,7 @@
+**5.2.0 - TBD/TBD/26**
+
+- Update when population characteristics happen in lifecycle methods
+
 **5.1.7 - 04/30/26**
 
 - Add disease tutorial

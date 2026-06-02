@@ -44,7 +44,7 @@ if __name__ == "__main__":
     install_requirements = [
         "vivarium_dependencies[pandas,numpy_lt_2,scipy,tables,loguru,pyarrow]",
         "vivarium_build_utils>=3.0.2,<4.0.0",
-        "vivarium>=4.1.0,<5.0.0",
+        "vivarium @ git+https://github.com/ihmeuw/vivarium@albrja/mic-6867/observer-priority",
         "layered_config_tree",
         "risk_distributions>=2.0.11",
     ]

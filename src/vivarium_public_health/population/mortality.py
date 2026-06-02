@@ -138,10 +138,10 @@ class Mortality(Component):
     def time_step_priority(self) -> int:
         """The time step priority for mortality processing.
 
-        It is set to 0 to ensure that mortality is processed before other components
-        that may depend on simulants being alive.
+        It is set to 2 so that person-time observations (priority 1) run
+        before mortality removes simulants.
         """
-        return 0
+        return 2
 
     #####################
     # Lifecycle methods #
