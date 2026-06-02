@@ -28,6 +28,7 @@ py:class Event
 py:class vivarium.framework.event.manager.Event
 py:class LookupTable
 py:mod vivarium_public_health._example_data
+py:class vivarium_public_health._example_data.ConstantRatePipeline
 
 # results module - classes referenced in tutorials
 py:class vivarium.framework.results.Observer

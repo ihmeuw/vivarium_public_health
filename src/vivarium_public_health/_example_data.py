@@ -17,8 +17,10 @@ from typing import Any
 import numpy as np
 import pandas as pd
 from layered_config_tree import LayeredConfigTree
+from vivarium import Component
 from vivarium.framework.artifact import ArtifactManager
 from vivarium.framework.configuration import build_simulation_configuration
+from vivarium.framework.engine import Builder
 
 #############
 # Constants #
@@ -584,3 +586,49 @@ def make_base_config() -> LayeredConfigTree:
         layer="model_override",
     )
     return config
+
+
+class ConstantRatePipeline(Component):
+    """Register a constant-valued attribute pipeline for tutorial demonstrations.
+
+    This component creates a simple attribute pipeline with
+    ``replace_combiner`` (the default) that returns a fixed value for all
+    simulants. It is useful for demonstrating pipeline modifiers like
+    :class:`~vivarium_public_health.treatment.magic_wand.AbsoluteShift`
+    without requiring a full disease model.
+
+    Parameters
+    ----------
+    pipeline_name
+        The name of the attribute pipeline to register
+        (e.g. ``"test_cause.incidence_rate"``).
+    rate
+        The constant value the pipeline returns for every simulant.
+    """
+
+    def __init__(self, pipeline_name: str, rate: float = 0.1) -> None:
+        super().__init__()
+        self._pipeline_name = pipeline_name
+        self._rate = rate
+
+    @property
+    def name(self) -> str:
+        """The name of this component."""
+        return f"constant_rate_pipeline.{self._pipeline_name}"
+
+    def setup(self, builder: Builder) -> None:
+        """Register the constant-valued attribute pipeline.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        """
+        builder.value.register_attribute_producer(
+            self._pipeline_name,
+            source=self._source,
+        )
+
+    def _source(self, index: pd.Index) -> pd.Series:
+        """Return the constant rate for all simulants."""
+        return pd.Series(self._rate, index=index)

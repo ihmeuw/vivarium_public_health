@@ -609,6 +609,41 @@ def test_non_loglinear_effect(rr_parameter_data, error_message, base_config, bas
     assert np.isclose(rate.values, expected_values, rtol=0.0000001).all()
 
 
+def test_non_loglinear_effect_empty_rr_data(base_config, base_plugins):
+    """Empty relative risk data (e.g. after filtering to the target entity
+    and measure) should raise an intuitive error rather than failing
+    downstream when building the lookup table."""
+    risk = CustomExposureRisk("risk_factor.test_risk")
+    effect = NonLogLinearRiskEffect(risk.name, "cause.test_cause.incidence_rate")
+
+    # affected_entity does not match the target ("test_cause"), so filtering
+    # to the target entity and measure leaves no rows.
+    rr_data = pd.DataFrame(
+        {
+            "affected_entity": "some_other_cause",
+            "affected_measure": "incidence_rate",
+            "year_start": 1990,
+            "year_end": 1991,
+            "parameter": [1, 2, 5],
+            "value": [2.0, 2.4, 4.0],
+        },
+    )
+    # enforce TMREL of 1
+    tmred = {"distribution": "uniform", "min": 1, "max": 1, "inverted": False}
+
+    data = {
+        f"{risk.name}.relative_risk": rr_data,
+        f"{risk.name}.tmred": tmred,
+        f"{risk.name}.population_attributable_fraction": 0,
+        "cause.test_cause.incidence_rate": 1,
+    }
+
+    base_config.update({"population": {"population_size": 10}})
+
+    with pytest.raises(ValueError, match="empty"):
+        _setup_risk_effect_simulation(base_config, base_plugins, risk, effect, data)
+
+
 def test_relative_risk_pipeline(dichotomous_risk, base_config, base_plugins):
     risk = dichotomous_risk[0]
     effect = RiskEffect(risk.name, "cause.test_cause.incidence_rate")
