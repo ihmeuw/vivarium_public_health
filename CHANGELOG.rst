@@ -1,3 +1,7 @@
+**5.1.12 - 06/03/26**
+
+- Add observers tutorial
+
 **5.1.11 - 06/01/26**
 
 - Raise error if filtered relative risk data is empty

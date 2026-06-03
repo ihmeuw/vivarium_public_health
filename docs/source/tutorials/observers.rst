@@ -2,8 +2,15 @@
 Observers
 =========
 
-This tutorial gives minimal working examples of each public health observer
-and demonstrates three ways to configure stratification.
+This tutorial serves two purposes: it gives minimal working examples of
+each public health observer, and it demonstrates three ways to configure
+stratification.
+
+These observer classes are public-health-specific helpers built on top of the
+vivarium framework's
+:class:`~vivarium.framework.results.observer.Observer` base class (see the
+`vivarium results concepts <https://vivarium.readthedocs.io/en/latest/concepts/results.html>`_
+documentation for details on the underlying results system).
 
 .. contents::
    :local:
@@ -279,6 +286,13 @@ one observation:
 
 Stratification
 --------------
+
+A **stratification** splits observer output into sub-groups based on simulant
+attributes (e.g. age group, sex, or custom categories). Each stratification
+adds a column to the results table whose values identify which group each row
+belongs to. You can include, exclude, or define custom stratifications per
+observer.
+
 
 Including a stratification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
