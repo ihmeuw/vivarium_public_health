@@ -476,6 +476,7 @@ _CAUSE_DEFAULTS: dict[str, Callable[[], Any]] = {
 # or use scalar/DataFrame overrides via data_sources configuration.
 _RISK_DEFAULTS: dict[str, Callable[[], Any]] = {
     "distribution": lambda: "dichotomous",
+    "categories": lambda: {"exposed": "exposed", "unexposed": "unexposed"},
     "exposure": risk_exposure_dichotomous,
     "relative_risk": risk_relative_risk_dichotomous,
     "population_attributable_fraction": risk_paf,

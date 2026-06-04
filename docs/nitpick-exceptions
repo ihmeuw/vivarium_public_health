@@ -30,6 +30,14 @@ py:class LookupTable
 py:mod vivarium_public_health._example_data
 py:class vivarium_public_health._example_data.ConstantRatePipeline
 
+# results module - classes referenced in tutorials
+py:class vivarium.framework.results.Observer
+py:class vivarium_public_health.results.DiseaseObserver
+py:class vivarium_public_health.results.MortalityObserver
+py:class vivarium_public_health.results.DisabilityObserver
+py:class vivarium_public_health.results.CategoricalRiskObserver
+py:class vivarium_public_health.results.ResultsStratifier
+
 # vivarium types and classes used in type hints
 py:class DataInput
 py:class Transition
