@@ -12,11 +12,11 @@ Public Health Observer
 The :class:`~vivarium_public_health.results.observer.PublicHealthObserver` is a
 convenience base class for building :ref:`observers <results_concept>` in
 public health simulations. It extends vivarium's
-:class:`~vivarium.framework.results.observer.Observer` with two capabilities
+:class:`~vivarium.engine.framework.results.observer.Observer` with two capabilities
 that most public health observers share:
 
 1. A simplified method for registering
-   :class:`adding observations <vivarium.framework.results.observation.AddingObservation>`.
+   :class:`adding observations <vivarium.engine.framework.results.observation.AddingObservation>`.
 2. A standardized results-formatting pipeline that produces a consistent
    column layout across all public health outputs.
 
@@ -36,7 +36,7 @@ which wraps that call with sensible defaults and automatically applies the
 standardized formatter.
 
 The method accepts the same core arguments as
-:meth:`~vivarium.framework.results.interface.ResultsInterface.register_adding_observation`
+:meth:`~vivarium.engine.framework.results.interface.ResultsInterface.register_adding_observation`
 (``pop_filter``, ``when``, ``aggregator``, etc.) plus two convenience
 parameters:
 
@@ -98,7 +98,7 @@ To create a new public health observer:
 
 1. Subclass ``PublicHealthObserver``.
 2. Implement
-   :meth:`~vivarium.framework.results.observer.Observer.register_observations`
+   :meth:`~vivarium.engine.framework.results.observer.Observer.register_observations`
    and call ``self.register_adding_observation(...)`` within it.
 3. Override the formatting sub-methods as needed to populate the metadata
    columns.
@@ -112,7 +112,7 @@ The ``vivarium_public_health`` results package ships several concrete
 observers that cover the most common public health measures. Each inherits
 from :class:`~vivarium_public_health.results.observer.PublicHealthObserver`
 and registers one or more
-:class:`adding observations <vivarium.framework.results.observation.AddingObservation>`
+:class:`adding observations <vivarium.engine.framework.results.observation.AddingObservation>`
 during setup.
 
 All concrete observers support per-observer stratification overrides via the

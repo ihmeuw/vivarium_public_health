@@ -14,18 +14,18 @@ from typing import Any
 from typing import SupportsFloat as Numeric
 
 import pandas as pd
-from vivarium import Component
-from vivarium.framework.engine import Builder
-from vivarium.framework.event import Event
-from vivarium.framework.lookup import DEFAULT_VALUE_COLUMN
-from vivarium.framework.resource import Resource
-from vivarium.framework.values import (
+from vivarium.engine import Component
+from vivarium.engine.framework.engine import Builder
+from vivarium.engine.framework.event import Event
+from vivarium.engine.framework.lookup import DEFAULT_VALUE_COLUMN
+from vivarium.engine.framework.resource import Resource
+from vivarium.engine.framework.values import (
     AttributePostProcessor,
     ValuesManager,
     multiplication_combiner,
     raw_union_post_processor,
 )
-from vivarium.types import LookupTableData, NumberLike
+from vivarium.engine.types import LookupTableData, NumberLike
 
 
 def get_calibration_constant_pipeline_name(target_pipeline_name: str) -> str:

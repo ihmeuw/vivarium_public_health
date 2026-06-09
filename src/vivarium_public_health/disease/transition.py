@@ -13,10 +13,10 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 import pandas as pd
-from vivarium.framework.engine import Builder
-from vivarium.framework.state_machine import Transition, Trigger
-from vivarium.framework.utilities import rate_to_probability
-from vivarium.types import DataInput
+from vivarium.engine.framework.engine import Builder
+from vivarium.engine.framework.state_machine import Transition, Trigger
+from vivarium.engine.framework.utilities import rate_to_probability
+from vivarium.engine.types import DataInput
 
 from vivarium_public_health.causal_factor.calibration_constant import (
     register_risk_affected_rate_producer,

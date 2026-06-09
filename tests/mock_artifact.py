@@ -9,7 +9,7 @@ testing vivarium_public_health components.
 """
 
 import pandas as pd
-from vivarium.framework.artifact import ArtifactManager
+from vivarium.engine.framework.artifact import ArtifactManager
 
 from tests.test_utilities import build_table_with_age, make_age_bins, make_uniform_pop_data
 

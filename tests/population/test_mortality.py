@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import pytest
-from vivarium import Component, InteractiveContext
+from vivarium.engine import Component, InteractiveContext
 from vivarium_testing_utils import FuzzyChecker
 
 from tests.test_utilities import build_table_with_age

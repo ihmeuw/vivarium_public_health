@@ -15,10 +15,10 @@ from operator import gt, lt
 from typing import Any
 
 import pandas as pd
-from vivarium import Component
-from vivarium.framework.engine import Builder
-from vivarium.framework.event import Event
-from vivarium.framework.population import SimulantData
+from vivarium.engine import Component
+from vivarium.engine.framework.engine import Builder
+from vivarium.engine.framework.event import Event
+from vivarium.engine.framework.population import SimulantData
 
 from vivarium_public_health.causal_factor.calibration_constant import (
     register_risk_affected_attribute_producer,

@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from hypothesis import given
-from vivarium.testing_utilities import build_table
+from vivarium.engine.testing_utilities import build_table
 
 from vivarium_public_health.utilities import EntityString, TargetString
 

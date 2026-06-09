@@ -9,8 +9,8 @@ This module contains utility functions for the placeholder components.
 
 import numpy as np
 import pandas as pd
-from vivarium.framework.engine import Builder
-from vivarium.framework.lookup import DEFAULT_VALUE_COLUMN
+from vivarium.engine.framework.engine import Builder
+from vivarium.engine.framework.lookup import DEFAULT_VALUE_COLUMN
 
 from vivarium_public_health.utilities import EntityString
 

@@ -99,7 +99,7 @@ model specification, we can specify the component to use its defaults with
 
 We declare the component but don't declare any configuration options for it.
 This will cause the risk component to look up any available exposure
-information in the :class:`~vivarium.framework.artifact.artifact.Artifact`
+information in the :class:`~vivarium.artifact.artifact.Artifact`
 and use the data as presented.
 
 If we change the ``"exposure"`` option to the name of a covariate as
@@ -116,7 +116,7 @@ If we change the ``"exposure"`` option to the name of a covariate as
            exposure: covariate.my_covariate
 
 the component will look for the covariate estimate in the
-:class:`~vivarium.framework.artifact.artifact.Artifact` rather than for
+:class:`~vivarium.artifact.artifact.Artifact` rather than for
 the risk factor exposure. Only covariates with a proportion estimate can be
 substituted for risk exposure. The covariate proportion will be used as the
 proportion of people exposed to the risk factor.

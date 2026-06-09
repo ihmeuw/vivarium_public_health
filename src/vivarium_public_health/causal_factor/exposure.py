@@ -10,10 +10,10 @@ from abc import ABC
 from typing import Any
 
 import pandas as pd
-from vivarium import Component
-from vivarium.framework.engine import Builder
-from vivarium.framework.population import SimulantData
-from vivarium.framework.randomness import RandomnessStream
+from vivarium.engine import Component
+from vivarium.engine.framework.engine import Builder
+from vivarium.engine.framework.population import SimulantData
+from vivarium.engine.framework.randomness import RandomnessStream
 
 from vivarium_public_health.causal_factor.distributions import (
     CausalFactorDistribution,

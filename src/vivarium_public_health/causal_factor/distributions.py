@@ -16,11 +16,11 @@ from typing import NamedTuple
 import numpy as np
 import pandas as pd
 import risk_distributions as rd
-from layered_config_tree import LayeredConfigTree
-from vivarium import Component
-from vivarium.framework.engine import Builder
-from vivarium.framework.lookup import DEFAULT_VALUE_COLUMN, LookupTable
-from vivarium.framework.population import SimulantData
+from vivarium.config_tree import ConfigTree
+from vivarium.engine import Component
+from vivarium.engine.framework.engine import Builder
+from vivarium.engine.framework.lookup import DEFAULT_VALUE_COLUMN, LookupTable
+from vivarium.engine.framework.population import SimulantData
 
 from vivarium_public_health.causal_factor.calibration_constant import (
     register_risk_affected_attribute_producer,
@@ -77,7 +77,7 @@ class CausalFactorDistribution(Component, ABC):
     # Setup methods #
     #################
 
-    def get_configuration(self, builder: "Builder") -> LayeredConfigTree | None:
+    def get_configuration(self, builder: "Builder") -> ConfigTree | None:
         """Return the configuration tree for this causal factor.
 
         Parameters

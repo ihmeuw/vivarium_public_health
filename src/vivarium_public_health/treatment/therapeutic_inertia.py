@@ -10,8 +10,8 @@ why a treatment algorithm might deviate from clinical guidelines.
 
 import pandas as pd
 import scipy.stats
-from vivarium import Component
-from vivarium.framework.engine import Builder
+from vivarium.engine import Component
+from vivarium.engine.framework.engine import Builder
 
 
 class TherapeuticInertia(Component):

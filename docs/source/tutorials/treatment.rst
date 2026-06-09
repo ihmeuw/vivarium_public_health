@@ -21,7 +21,7 @@ For how risk factor *exposures* modify disease outcomes, see the
    import pandas as pd
    from loguru import logger
    logger.disable("vivarium")
-   from vivarium import InteractiveContext
+   from vivarium.engine import InteractiveContext
    from vivarium_public_health.treatment import (
        Intervention, InterventionEffect, AbsoluteShift,
        LinearScaleUp, TherapeuticInertia,
@@ -71,7 +71,7 @@ To run any example in a standalone script, include all of these at the top:
 
 .. testcode::
 
-   from vivarium import InteractiveContext
+   from vivarium.engine import InteractiveContext
    from vivarium_public_health.treatment import (
        Intervention, InterventionEffect, AbsoluteShift,
        LinearScaleUp, TherapeuticInertia,

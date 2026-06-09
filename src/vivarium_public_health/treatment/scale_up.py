@@ -11,11 +11,11 @@ from collections.abc import Callable
 from typing import Any
 
 import pandas as pd
-from vivarium import Component
-from vivarium.framework.engine import Builder
-from vivarium.framework.lookup import LookupTable
-from vivarium.framework.values import Pipeline
-from vivarium.types import Time
+from vivarium.engine import Component
+from vivarium.engine.framework.engine import Builder
+from vivarium.engine.framework.lookup import LookupTable
+from vivarium.engine.framework.values import Pipeline
+from vivarium.engine.types import Time
 
 from vivarium_public_health.utilities import EntityString
 
@@ -219,7 +219,7 @@ class LinearScaleUp(Component):
         Returns
         -------
             A dictionary mapping pipeline names to
-            :class:`~vivarium.framework.values.pipeline.Pipeline` objects.
+            :class:`~vivarium.engine.framework.values.pipeline.Pipeline` objects.
             The base implementation returns an empty dictionary.
         """
         return {}

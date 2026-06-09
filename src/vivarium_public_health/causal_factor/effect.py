@@ -15,11 +15,11 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from layered_config_tree import ConfigurationError
-from vivarium import Component
-from vivarium.framework.engine import Builder
-from vivarium.framework.lookup import LookupTable
-from vivarium.types import LookupTableData
+from vivarium.config_tree import ConfigurationError
+from vivarium.engine import Component
+from vivarium.engine.framework.engine import Builder
+from vivarium.engine.framework.lookup import LookupTable
+from vivarium.engine.types import LookupTableData
 
 from vivarium_public_health.causal_factor.calibration_constant import (
     get_calibration_constant_pipeline_name,

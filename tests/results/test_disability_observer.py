@@ -4,8 +4,8 @@ import re
 import numpy as np
 import pandas as pd
 import pytest
-from layered_config_tree import LayeredConfigTree
-from vivarium import InteractiveContext
+from vivarium.config_tree import ConfigTree
+from vivarium.engine import InteractiveContext
 
 from tests.test_utilities import build_table_with_age
 from vivarium_public_health.disease import DiseaseModel, DiseaseState, RiskAttributableDisease
@@ -41,9 +41,7 @@ def test_disability_observer_setup(mocker):
     builder.results.register_adding_observation = mocker.Mock()
     builder.configuration.time.step_size = 28
     builder.configuration.output_data.results_directory = "some/results/directory"
-    builder.configuration.stratification.excluded_categories = LayeredConfigTree(
-        {"disability": []}
-    )
+    builder.configuration.stratification.excluded_categories = ConfigTree({"disability": []})
 
     # Set up fake calls for cause-specific register_observation args
     flu = DiseaseState("flu")
@@ -183,7 +181,7 @@ def test_set_causes_of_disability(exclusions, mocker):
 
     builder = mocker.MagicMock()
     builder.configuration.time.step_size = 28
-    builder.configuration.stratification.excluded_categories = LayeredConfigTree(
+    builder.configuration.stratification.excluded_categories = ConfigTree(
         {"disability": exclusions}
     )
 
@@ -203,7 +201,7 @@ def test_set_causes_of_disability_raises(mocker):
 
     builder = mocker.MagicMock()
     builder.configuration.time.step_size = 28
-    builder.configuration.stratification.excluded_categories = LayeredConfigTree(
+    builder.configuration.stratification.excluded_categories = ConfigTree(
         {"disability": ["arthritis"]}  # not an instantiated disease
     )
 

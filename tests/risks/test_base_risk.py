@@ -3,9 +3,9 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import pytest
-from layered_config_tree import LayeredConfigTree
-from vivarium import Component, InteractiveContext
-from vivarium.framework.engine import Builder
+from vivarium.config_tree import ConfigTree
+from vivarium.engine import Component, InteractiveContext
+from vivarium.engine.framework.engine import Builder
 
 from tests.test_utilities import build_table_with_age
 from vivarium_public_health.causal_factor.calibration_constant import (
@@ -80,8 +80,8 @@ def polytomous_risk() -> tuple[Risk, dict[str, Any]]:
 
 
 def _setup_risk_simulation(
-    config: LayeredConfigTree,
-    plugins: LayeredConfigTree,
+    config: ConfigTree,
+    plugins: ConfigTree,
     risk: str | Risk,
     data: dict[str, Any],
     has_risk_effect: bool = True,

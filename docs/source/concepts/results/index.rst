@@ -33,7 +33,7 @@ The package is organized around two cooperating concerns:
 1. **Observers** — a convenience base class
    (:class:`~vivarium_public_health.results.observer.PublicHealthObserver`)
    that wraps the framework's
-   :class:`~vivarium.framework.results.observer.Observer` with a simplified
+   :class:`~vivarium.engine.framework.results.observer.Observer` with a simplified
    registration method and a standardized results-formatting pipeline, plus a
    set of ready-to-use concrete observers for common public health measures:
    disability (YLDs), disease state person-time and transition counts,

@@ -9,9 +9,9 @@ in the simulation.
 """
 
 import pandas as pd
-from vivarium.framework.engine import Builder
-from vivarium.framework.event import Event
-from vivarium.framework.population import SimulantData
+from vivarium.engine.framework.engine import Builder
+from vivarium.engine.framework.event import Event
+from vivarium.engine.framework.population import SimulantData
 
 from vivarium_public_health.results.columns import COLUMNS
 from vivarium_public_health.results.observer import PublicHealthObserver

@@ -3,7 +3,7 @@ import math
 import numpy as np
 import pandas as pd
 import pytest
-from vivarium.testing_utilities import get_randomness
+from vivarium.engine.testing_utilities import get_randomness
 
 import vivarium_public_health.population.data_transformations as dt
 from tests.test_utilities import make_uniform_pop_data

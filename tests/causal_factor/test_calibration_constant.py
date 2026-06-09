@@ -15,10 +15,10 @@ from collections.abc import Sequence
 import numpy as np
 import pandas as pd
 import pytest
-from vivarium import Component, InteractiveContext
-from vivarium.framework.engine import Builder
-from vivarium.framework.utilities import from_yearly
-from vivarium.framework.values import AttributePostProcessor, ValuesManager
+from vivarium.engine import Component, InteractiveContext
+from vivarium.engine.framework.engine import Builder
+from vivarium.engine.framework.utilities import from_yearly
+from vivarium.engine.framework.values import AttributePostProcessor, ValuesManager
 
 from tests.test_utilities import build_table_with_age
 from vivarium_public_health.causal_factor.calibration_constant import (

@@ -14,12 +14,12 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from vivarium import Component
-from vivarium.framework.engine import Builder
-from vivarium.framework.population import PopulationView, SimulantData
-from vivarium.framework.randomness import RandomnessStream
-from vivarium.framework.state_machine import State, Transient, Transition, Trigger
-from vivarium.types import DataInput, LookupTableData
+from vivarium.engine import Component
+from vivarium.engine.framework.engine import Builder
+from vivarium.engine.framework.population import PopulationView, SimulantData
+from vivarium.engine.framework.randomness import RandomnessStream
+from vivarium.engine.framework.state_machine import State, Transient, Transition, Trigger
+from vivarium.engine.types import DataInput, LookupTableData
 
 from vivarium_public_health.causal_factor.calibration_constant import (
     register_risk_affected_rate_producer,

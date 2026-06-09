@@ -8,7 +8,7 @@ This module contains tools for observing risk exposure during the simulation.
 """
 
 import pandas as pd
-from vivarium.framework.engine import Builder
+from vivarium.engine.framework.engine import Builder
 
 from vivarium_public_health.results.columns import COLUMNS
 from vivarium_public_health.results.observer import PublicHealthObserver
