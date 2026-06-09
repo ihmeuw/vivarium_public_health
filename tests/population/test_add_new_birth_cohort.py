@@ -3,12 +3,14 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
-from vivarium import InteractiveContext
-from vivarium.testing_utilities import TestPopulation, metadata
+from vivarium.engine import InteractiveContext
+from vivarium.engine.framework.engine import Builder
+from vivarium.engine.testing_utilities import TestPopulation, metadata
 
-from tests.test_utilities import build_table_with_age
+from tests.test_utilities import build_table_with_age, make_uniform_pop_data
 from vivarium_public_health import utilities
 from vivarium_public_health.population import (
+    BasePopulation,
     FertilityAgeSpecificRates,
     FertilityCrudeBirthRate,
     FertilityDeterministic,
@@ -236,3 +238,72 @@ def test_fertility_module(base_config, base_plugins):
             "expect all children to have mothers who"
             " gave birth after the simulation starts."
         )
+
+
+# ---------------------------------------------------------------------------
+# Data sources tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def birth_data():
+    """Live births data matching the year range in the mock artifact."""
+    years = list(zip(range(1990, 2018), range(1991, 2019)))
+    rows = [
+        {
+            "year_start": ys,
+            "year_end": ye,
+            "sex": sex,
+            "parameter": "mean_value",
+            "value": 500.0,
+        }
+        for (ys, ye) in years
+        for sex in ("Female", "Male")
+    ]
+    return pd.DataFrame(rows)
+
+
+class TestFertilityCrudeBirthRateDataSources:
+    """Tests for FertilityCrudeBirthRate with DataFrame and callable data sources."""
+
+    @pytest.mark.parametrize(
+        "use_callable",
+        [False, True],
+        ids=["dataframe", "callable"],
+    )
+    def test_data_sources(self, base_config, base_plugins, birth_data, use_callable):
+        """FertilityCrudeBirthRate works with DataFrame and callable data sources."""
+        pop_data = make_uniform_pop_data()
+        pop_source = (lambda b: pop_data) if use_callable else pop_data
+        birth_source = (lambda b: birth_data) if use_callable else birth_data
+
+        base_config.update(
+            {
+                "population": {
+                    "population_size": 10_000,
+                    "initialization_age_min": 0,
+                    "initialization_age_max": 125,
+                    "data_sources": {
+                        "population_structure": pop_data,
+                    },
+                    "location": "BirthLand",
+                },
+                "time": {"step_size": 10},
+                "mortality": {"data_sources": {"all_cause_mortality_rate": 0}},
+                "fertility": {
+                    "data_sources": {
+                        "population_structure": pop_source,
+                        "live_births_by_sex": birth_source,
+                    }
+                },
+            },
+            layer="override",
+        )
+        sim = InteractiveContext(
+            components=[BasePopulation(), FertilityCrudeBirthRate()],
+            configuration=base_config,
+            plugin_configuration=base_plugins,
+        )
+        initial_pop_size = len(sim.get_population(["age"]))
+        sim.take_steps(number_of_steps=10)
+        assert len(sim.get_population(["age"])) > initial_pop_size
