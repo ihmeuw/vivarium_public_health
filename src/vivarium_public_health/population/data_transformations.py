@@ -12,10 +12,26 @@ from collections import namedtuple
 
 import numpy as np
 import pandas as pd
-from vivarium.framework.engine import Builder
-from vivarium.framework.randomness import RandomnessStream
+from vivarium.engine.framework.engine import Builder
+from vivarium.engine.framework.randomness import RandomnessStream
 
 _SORT_ORDER = ["location", "year_start", "sex", "age_start"]
+
+
+def add_age_midpoint(data: pd.DataFrame) -> pd.DataFrame:
+    """Add an ``age`` column as the midpoint of ``age_start`` and ``age_end``.
+
+    Parameters
+    ----------
+    data
+        A DataFrame with ``age_start`` and ``age_end`` columns.
+
+    Returns
+    -------
+        The input DataFrame with an ``age`` column added in place.
+    """
+    data["age"] = (data["age_start"] + data["age_end"]) / 2
+    return data
 
 
 def assign_demographic_proportions(
@@ -532,157 +548,3 @@ def get_cause_deleted_mortality_rate(
     return all_cause_mortality_rate.reset_index().rename(
         columns={"value": "death_due_to_other_causes"}
     )
-
-
-def load_population_structure(builder: Builder) -> pd.DataFrame:
-    """Load population structure data from the artifact and add derived columns.
-
-    Parameters
-    ----------
-    builder
-        Access point for utilizing framework interfaces during setup.
-
-    Returns
-    -------
-        DataFrame with all columns from the raw data plus ``age`` and ``location``.
-    """
-    data = builder.data.load("population.structure")
-    # create an age column which is the midpoint of the age group
-    data["age"] = data.apply(lambda row: (row["age_start"] + row["age_end"]) / 2, axis=1)
-    data["location"] = builder.data.load("population.location")
-
-    return data
-
-
-def get_live_births_per_year(builder: Builder) -> pd.Series:
-    """Compute the simulated number of live births per year.
-
-    Combines population structure data with live birth covariate data to
-    produce a per-year birth rate scaled to the simulation's initial
-    population size. Handles time-dependent vs. fixed birth rates and
-    population fractions according to the fertility configuration, and
-    extends the series to cover the simulation end year if needed.
-
-    Parameters
-    ----------
-    builder
-        Access point for utilizing framework interfaces during setup.
-
-    Returns
-    -------
-        A :class:`pandas.Series` indexed by year containing the expected
-        number of new simulant births per year.
-    """
-    population_data = load_population_structure(builder)
-    birth_data = builder.data.load("covariate.live_births_by_sex.estimate")
-
-    validate_crude_birth_rate_data(builder, population_data.year_end.max())
-    population_data = rescale_final_age_bin(builder, population_data)
-
-    initial_population_size = builder.configuration.population.population_size
-    population_data = population_data.groupby(["year_start"])["value"].sum()
-    birth_data = (
-        birth_data[birth_data.parameter == "mean_value"]
-        .drop(columns=["parameter"])
-        .groupby(["year_start"])["value"]
-        .sum()
-    )
-
-    start_year = builder.configuration.time.start.year
-    if (
-        builder.configuration.interpolation.extrapolate
-        and start_year > birth_data.index.max()
-    ):
-        start_year = birth_data.index.max()
-
-    if not builder.configuration.fertility.time_dependent_live_births:
-        birth_data = birth_data.at[start_year]
-
-    if not builder.configuration.fertility.time_dependent_population_fraction:
-        population_data = population_data.at[start_year]
-
-    live_birth_rate = initial_population_size / population_data * birth_data
-
-    if isinstance(live_birth_rate, (int, float)):
-        live_birth_rate = pd.Series(
-            live_birth_rate,
-            index=pd.RangeIndex(
-                builder.configuration.time.start.year,
-                builder.configuration.time.end.year + 1,
-                name="year",
-            ),
-        )
-    else:
-        live_birth_rate = (
-            live_birth_rate.reset_index()
-            .rename(columns={"year_start": "year"})
-            .set_index("year")
-            .value
-        )
-        exceeds_data = builder.configuration.time.end.year > live_birth_rate.index.max()
-        if exceeds_data:
-            new_index = pd.RangeIndex(
-                live_birth_rate.index.min(), builder.configuration.time.end.year + 1
-            )
-            live_birth_rate = live_birth_rate.reindex(
-                new_index, fill_value=live_birth_rate.at[live_birth_rate.index.max()]
-            )
-    return live_birth_rate
-
-
-def rescale_final_age_bin(builder: Builder, population_data: pd.DataFrame) -> pd.DataFrame:
-    """Clip and rescale the final age bin to match ``initialization_age_max``.
-
-    When ``population.initialization_age_max`` is configured and falls within
-    an existing age bin, that bin is truncated at ``initialization_age_max``
-    and its ``value`` is scaled proportionally to reflect the reduced width.
-
-    Parameters
-    ----------
-    builder
-        Access point for utilizing framework interfaces during setup.
-    population_data
-        DataFrame with columns ``age_start``, ``age_end``, and ``value``.
-
-    Returns
-    -------
-        A copy of ``population_data`` with the final age bin adjusted to end
-        at ``initialization_age_max`` and its value rescaled accordingly.
-        Returned unchanged if ``initialization_age_max`` is not set.
-    """
-    initialization_age_max = builder.configuration.population.to_dict().get(
-        "initialization_age_max", None
-    )
-
-    if initialization_age_max:
-        population_data = population_data.loc[
-            population_data["age_start"] < initialization_age_max
-        ].copy()
-        cut_bin_idx = initialization_age_max <= population_data["age_end"]
-        cut_age_start = population_data.loc[cut_bin_idx, "age_start"]
-        cut_age_end = population_data.loc[cut_bin_idx, "age_end"]
-        population_data.loc[cut_bin_idx, "value"] *= (
-            initialization_age_max - cut_age_start
-        ) / (cut_age_end - cut_age_start)
-        population_data.loc[cut_bin_idx, "age_end"] = initialization_age_max
-    return population_data
-
-
-def validate_crude_birth_rate_data(builder: Builder, data_year_max: int) -> None:
-    """Validate that birth rate data covers the simulation time period.
-
-    Parameters
-    ----------
-    builder
-        Access point for utilizing framework interfaces during setup.
-    data_year_max
-        The latest year covered by the available birth rate data.
-
-    Raises
-    ------
-    ValueError
-        If the simulation end year exceeds ``data_year_max`` and extrapolation is not enabled.
-    """
-    exceeds_data = builder.configuration.time.end.year > data_year_max
-    if exceeds_data and not builder.configuration.interpolation.extrapolate:
-        raise ValueError("Trying to extrapolate beyond the end of available birth data.")

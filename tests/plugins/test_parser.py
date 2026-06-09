@@ -3,10 +3,10 @@ from typing import Any, NamedTuple
 
 import pytest
 import yaml
-from layered_config_tree import LayeredConfigTree
-from vivarium import Component, InteractiveContext
-from vivarium.framework.components.parser import ParsingError
-from vivarium.framework.state_machine import Transient, Transition
+from vivarium.config_tree import ConfigTree
+from vivarium.engine import Component, InteractiveContext
+from vivarium.engine.framework.components.parser import ParsingError
+from vivarium.engine.framework.state_machine import Transient, Transition
 
 from tests.mock_artifact import MockArtifact
 from tests.mock_artifact import MockArtifactManager as MockArtifactManager_
@@ -337,7 +337,7 @@ COMPLEX_MODEL_CONFIG = {
 }
 
 
-def create_simulation_config_tree(config_dict: dict) -> LayeredConfigTree:
+def create_simulation_config_tree(config_dict: dict) -> ConfigTree:
     config_tree_layers = [
         "base",
         "user_configs",
@@ -345,30 +345,30 @@ def create_simulation_config_tree(config_dict: dict) -> LayeredConfigTree:
         "model_override",
         "override",
     ]
-    config_tree = LayeredConfigTree(layers=config_tree_layers)
+    config_tree = ConfigTree(layers=config_tree_layers)
     config_tree.update(config_dict, layer="model_override")
     return config_tree
 
 
 @pytest.fixture(scope="module")
-def base_config(base_config_factory) -> LayeredConfigTree:
+def base_config(base_config_factory) -> ConfigTree:
     yield base_config_factory()
 
 
 @pytest.fixture(scope="module")
-def causes_config_parser_plugins() -> LayeredConfigTree:
+def causes_config_parser_plugins() -> ConfigTree:
     config_parser_plugin_config = {
         "required": {
             "data": {
                 "controller": "tests.plugins.test_parser.MockArtifactManager",
-                "builder_interface": "vivarium.framework.artifact.ArtifactInterface",
+                "builder_interface": "vivarium.engine.framework.artifact.ArtifactInterface",
             },
             "component_configuration_parser": {
                 "controller": "vivarium_public_health.plugins.CausesConfigurationParser",
             },
         }
     }
-    return LayeredConfigTree(config_parser_plugin_config)
+    return ConfigTree(config_parser_plugin_config)
 
 
 @pytest.fixture
@@ -392,9 +392,7 @@ ALL_COMPONENTS_CONFIG_DICT = {
 
 
 @pytest.fixture(scope="module")
-def sim_components(
-    base_config: LayeredConfigTree, causes_config_parser_plugins: LayeredConfigTree
-):
+def sim_components(base_config: ConfigTree, causes_config_parser_plugins: ConfigTree):
     simulation = InteractiveContext(
         components=create_simulation_config_tree(ALL_COMPONENTS_CONFIG_DICT),
         configuration=base_config,
@@ -409,7 +407,7 @@ def sim_components(
 
 
 def _test_parsing_of_config_file(
-    component_config: LayeredConfigTree,
+    component_config: ConfigTree,
     expected_component_names: tuple[str] = (
         f"disease_model.{SIR_MODEL}",
         f"complex_model.{COMPLEX_MODEL}",

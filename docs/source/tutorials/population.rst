@@ -14,7 +14,7 @@ configuration required for each approach.
 
    import numpy as np
    import pandas as pd
-   from vivarium import InteractiveContext
+   from vivarium.engine import InteractiveContext
    from vivarium_public_health.population import *
    from vivarium_public_health._example_data import *
    base_plugins = BASE_PLUGINS
@@ -54,13 +54,10 @@ simulation begins:
 Common Setup
 ------------
 
-In a vivarium simulation, data can be supplied through a **data artifact** -
-an HDF file that you build with all the input data your model needs. To
-keep the code blocks in this tutorial simple, we use an example artifact for
-keys that must come from the artifact, and supply the rest through
-configuration overrides (see `Data sources`_). The `Artifact Data Format`_
-section shows the expected key names and column layouts for every data key
-so that you know exactly what to put in your own artifact.
+Population components load their data through the ``data_sources``
+configuration pattern (see `Data sources`_). The `Expected Data Layout`_
+section shows the key names and column layouts for every data key so that
+you know exactly what format your data should have.
 
 Every code example in this tutorial uses two helpers imported from
 :mod:`vivarium_public_health._example_data`:
@@ -69,8 +66,7 @@ Every code example in this tutorial uses two helpers imported from
 
    from vivarium_public_health._example_data import BASE_PLUGINS, make_base_config
 
-   # BASE_PLUGINS overrides the data plugin to use ExampleArtifactManager,
-   # which serves example data from memory instead of requiring a real HDF file.
+   # BASE_PLUGINS configures the data plugin to serve example data from memory.
    # Pass it as plugin_configuration to InteractiveContext.
    base_plugins = BASE_PLUGINS
 
@@ -79,25 +75,22 @@ Every code example in this tutorial uses two helpers imported from
    config = make_base_config()
 
 
-Artifact Data Format
+Expected Data Layout
 --------------------
 
 This section documents the **key name** and **column layout** that each
 population component expects. Some components also support a
 ``data_sources`` configuration pattern that lets you override individual
-keys with a scalar, DataFrame, or callable without rebuilding the artifact
-(see `Data sources`_).
+keys with a scalar, DataFrame, or callable (see `Data sources`_).
 
 
 Data keys
 ^^^^^^^^^
 
 The table below lists every data key used by the population components.
-Keys marked **artifact-required** must be present in the artifact - the
-component loads them directly and they cannot be replaced via configuration.
-Keys marked **configurable** can be overridden in the ``data_sources``
-section of the configuration (see `Data sources`_); the artifact key shown
-is simply the default.
+All of them can be overridden in the ``data_sources`` section of the
+configuration (see `Data sources`_); the data key shown is simply the
+default.
 
 .. list-table::
    :header-rows: 1
@@ -106,66 +99,61 @@ is simply the default.
      - Index columns
      - Value columns
      - Used by
-     - Configurable?
+     - Configuration override
    * - ``population.structure``
      - age, sex, year, location
      - ``value`` (population count)
      - :class:`~vivarium_public_health.population.base_population.BasePopulation`,
        :class:`~vivarium_public_health.population.base_population.ScaledPopulation`
-     - No (artifact-required)
-   * - ``population.age_bins``
-     - One row per age group
-     - ``age_start``, ``age_end``, ``age_group_name``
-     - :class:`~vivarium_public_health.population.base_population.BasePopulation`
-     - No (artifact-required)
+     - ``population.population_structure``
    * - ``population.location``
      - *(scalar)*
      - A string (e.g. ``"Kenya"``)
      - :class:`~vivarium_public_health.population.base_population.BasePopulation`
-     - No (artifact-required)
+     - ``population.location``
    * - ``cause.all_causes.cause_specific_mortality_rate``
      - age, sex, year
      - ``value`` (rate)
      - :class:`~vivarium_public_health.population.mortality.Mortality`
-     - Yes - ``mortality.data_sources.all_cause_mortality_rate``
+     - ``mortality.data_sources.all_cause_mortality_rate``
    * - ``population.theoretical_minimum_risk_life_expectancy``
      - age
      - ``value`` (years of remaining life)
      - :class:`~vivarium_public_health.population.mortality.Mortality`
-     - Yes - ``mortality.data_sources.life_expectancy``
+     - ``mortality.data_sources.life_expectancy``
    * - ``covariate.live_births_by_sex.estimate``
      - year, sex, ``parameter``
      - ``value``
      - :class:`~vivarium_public_health.population.add_new_birth_cohorts.FertilityCrudeBirthRate`
-     - No (artifact-required)
+     - ``fertility.data_sources.live_births_by_sex``
    * - ``covariate.age_specific_fertility_rate.estimate``
      - age, sex, year, ``parameter``
      - ``value``
      - :class:`~vivarium_public_health.population.add_new_birth_cohorts.FertilityAgeSpecificRates`
-     - Yes - ``fertility_age_specific_rates.data_sources.age_specific_fertility_rate``
+     - ``fertility_age_specific_rates.data_sources.age_specific_fertility_rate``
 
 
 Data sources
 ^^^^^^^^^^^^
 
 Some components support a ``data_sources`` configuration pattern that lets
-you override individual data keys without rebuilding the artifact. This is
-especially useful during development or for simple tutorial examples like
-the ones in this page. Components that support it declare their data needs
-in ``configuration_defaults``; by default each key points to the
-corresponding artifact key. You can override any of them with:
+you override individual data keys. This is especially useful during
+development or for simple tutorial examples like the ones in this page.
+Components that support it declare their data needs in
+``configuration_defaults``; by default each key points to the
+corresponding data key string. You can override any of them with:
 
 - **Scalar** (int or float) - broadcast a constant value to all simulants.
 - **DataFrame** - use the DataFrame directly.
 - **Callable** - call the function at setup time to produce the data.
-- **Artifact key** (string) - load a different key from the artifact.
+- **Data key** (string) - load a different key from the data plugin.
 
 For example, :class:`~vivarium_public_health.population.mortality.Mortality` declares
 three configurable data sources:
 
 .. code-block:: yaml
 
-   # Default configuration (loaded from the artifact):
+   # Default configuration (loads from the data plugin):
    mortality:
      data_sources:
        all_cause_mortality_rate: "cause.all_causes.cause_specific_mortality_rate"
@@ -182,7 +170,7 @@ Any of these can be overridden in the simulation configuration:
 
 .. code-block:: yaml
 
-   # Override with a scalar - no artifact needed for this key:
+   # Override with a scalar - no data key lookup needed:
    configuration:
      mortality:
        data_sources:
@@ -197,32 +185,21 @@ BasePopulation
 --------------
 
 :class:`~vivarium_public_health.population.base_population.BasePopulation` is the standard way
-to create an initial population. It loads a population structure from the data
-artifact and samples simulants whose age, sex, and location distributions match
-the source data.
-
-``BasePopulation`` itself requires ``population.structure``,
-``population.age_bins``, and ``population.location`` to be present in the
-artifact (these are artifact-required keys). Its
-:class:`~vivarium_public_health.population.mortality.Mortality` sub-component supports
-the ``data_sources`` configuration, so mortality rates and life expectancy
-can be overridden with scalars or DataFrames - which is what we do in the
-tutorial examples below.
+to create an initial population. It loads a population structure and samples
+simulants whose age, sex, and location distributions match the source data.
 
 
-Artifact data consumed by BasePopulation
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Data consumed by BasePopulation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-``BasePopulation`` and its sub-components load the following keys from the
-artifact. The examples below use the data builders from the
-:mod:`~vivarium_public_health._example_data` module; a production artifact has
-the same column layout but with real GBD values.
+``BasePopulation`` and its sub-components use the following data. The examples
+below show the expected column layout. The data builders come from
+:mod:`~vivarium_public_health._example_data`.
 
 .. testcode::
 
    from vivarium_public_health._example_data import (
        population_structure,
-       age_bins,
        theoretical_minimum_risk_life_expectancy,
    )
 
@@ -240,21 +217,6 @@ the same column layout but with real GBD values.
      0.019178 0.076712 Female        1990      1991    Kenya  5.753425
      0.076712 1.000000   Male        1990      1991    Kenya 92.328767
      0.076712 1.000000 Female        1990      1991    Kenya 92.328767
-
-.. testcode::
-
-   # population.age_bins - defines the age groups used by the demographic data.
-   print(age_bins().head(5).to_string(index=False))
-
-.. testoutput::
-   :options: +NORMALIZE_WHITESPACE
-
-    age_start   age_end age_group_name
-     0.000000  0.019178 Early Neonatal
-     0.019178  0.076712  Late Neonatal
-     0.076712  1.000000  Post Neonatal
-     1.000000  5.000000         1 to 4
-     5.000000 10.000000         5 to 9
 
 .. testcode::
 
@@ -278,15 +240,66 @@ the same column layout but with real GBD values.
           4.0      5.0   98.0
 
 
+.. _data_via_configuration_base_population:
+
+Overriding the default data
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+By default, every data source loads from the artifact (configured via
+``BASE_PLUGINS`` in these examples). You can bypass the artifact and supply
+data directly through ``data_sources`` - pass a DataFrame, callable, or
+literal string:
+
+.. testcode::
+
+   import pandas as pd
+   from vivarium.engine import InteractiveContext
+   from vivarium_public_health.population import BasePopulation
+   from vivarium_public_health._example_data import population_structure
+
+   # Build population structure data (same layout as the data key).
+   pop_data = population_structure()
+
+   config = make_base_config()
+   config.update(
+       {
+           "population": {
+               "population_size": 5_000,
+               "data_sources": {
+                   "population_structure": pop_data,
+                   "location": "Kenya",
+               },
+           },
+           "mortality": {"data_sources": {"all_cause_mortality_rate": 0}},
+       },
+       layer="override",
+   )
+
+   sim = InteractiveContext(
+       components=[BasePopulation()],
+       configuration=config,
+       plugin_configuration=base_plugins,
+   )
+
+   pop = sim.get_population(["age", "sex", "location"])
+   assert len(pop) == 5_000
+   assert (pop["location"] == "Kenya").all()
+   print(f"Population: {len(pop)}, location: {pop['location'].iloc[0]}")
+
+.. testoutput::
+
+   Population: 5000, location: Kenya
+
+
 Default configuration
 ^^^^^^^^^^^^^^^^^^^^^
 
 The absolute minimum is a ``population_size``. Everything else has sensible
-defaults (ages 0–125, both sexes, no age-out):
+defaults (ages 0-125, both sexes, no age-out):
 
 .. testcode::
 
-   from vivarium import InteractiveContext
+   from vivarium.engine import InteractiveContext
    from vivarium_public_health.population import BasePopulation
 
    config = make_base_config()
@@ -495,6 +508,14 @@ Configuration summary for BasePopulation
    * - ``population.population_size``
      - 10000
      - Number of simulants to create.
+   * - ``population.population_structure``
+     - internal method (loads ``population.structure``)
+     - Population structure data. Accepts a DataFrame, callable,
+       or data key.
+   * - ``population.location``
+     - internal method (loads ``population.location``)
+     - Location string. Accepts a scalar string, callable,
+       or data key.
    * - ``population.initialization_age_min``
      - 0
      - Minimum age (years) for the initial population.
@@ -511,15 +532,15 @@ Configuration summary for BasePopulation
    * - ``mortality.data_sources.all_cause_mortality_rate``
      - ``"cause.all_causes.cause_specific_mortality_rate"``
      - All-cause mortality rate. Accepts a scalar, DataFrame, callable,
-       or artifact key.
+       or data key.
    * - ``mortality.data_sources.life_expectancy``
      - ``"population.theoretical_minimum_risk_life_expectancy"``
      - Remaining life expectancy by age. Accepts a scalar, DataFrame,
-       callable, or artifact key.
+       callable, or data key.
    * - ``mortality.data_sources.unmodeled_cause_specific_mortality_rate``
      - internal method
      - CSMR for unmodeled causes. Accepts a scalar, DataFrame, callable,
-       or artifact key.
+       or data key.
 
 
 ScaledPopulation
@@ -532,21 +553,20 @@ when simulants represent a subset of the real population (for example, only
 the population eligible for an intervention).
 
 The scaling factor can be either a :class:`pandas.DataFrame` with the same
-demographic index as the population structure, or a string artifact key that
+demographic index as the population structure, or a string data key that
 resolves to such a DataFrame.
 
 
-``ScaledPopulation`` uses the same artifact keys as ``BasePopulation`` (see
-`Artifact data consumed by BasePopulation`_) plus a user-supplied scaling
+``ScaledPopulation`` uses the same data sources as ``BasePopulation`` (see
+`Data consumed by BasePopulation`_) plus a user-supplied scaling
 factor. The scaling factor can be passed as a :class:`pandas.DataFrame`
-directly or as a string artifact key. Since we already have the data as a
-DataFrame, we pass it directly to the constructor - no artifact write needed:
+directly or as a string data key:
 
 .. testcode::
 
    import numpy as np
    import pandas as pd
-   from vivarium import InteractiveContext
+   from vivarium.engine import InteractiveContext
    from vivarium_public_health.population import ScaledPopulation
    from vivarium_public_health._example_data import population_structure
 
@@ -587,7 +607,7 @@ DataFrame, we pass it directly to the constructor - no artifact write needed:
 
 .. testcode::
 
-   # Pass the DataFrame directly - no need to write to the artifact.
+   # Pass the DataFrame directly.
    sim = InteractiveContext(
        components=[ScaledPopulation(scalar_data)],
        configuration=config,
@@ -622,11 +642,11 @@ FertilityDeterministic
 
 :class:`~vivarium_public_health.population.add_new_birth_cohorts.FertilityDeterministic` adds a
 fixed number of new simulants each year. This is the simplest fertility model
-and does not require any artifact data.
+and does not require any external data.
 
 .. testcode::
 
-   from vivarium import InteractiveContext
+   from vivarium.engine import InteractiveContext
    from vivarium_public_health.population import BasePopulation, FertilityDeterministic
 
    config = make_base_config()
@@ -674,11 +694,10 @@ This contrasts with
 :class:`~vivarium_public_health.population.add_new_birth_cohorts.FertilityAgeSpecificRates`, which
 models births at the individual level using rates that vary by age.
 
-It requires ``initialization_age_min`` to be 0 and needs
-``covariate.live_births_by_sex.estimate`` data in the artifact.
+It requires ``initialization_age_min`` to be 0.
 
-The artifact key ``covariate.live_births_by_sex.estimate`` should contain
-a row for each year × sex combination:
+The ``live_births_by_sex`` data should contain a row for each
+year × sex combination:
 
 .. testcode::
 
@@ -699,14 +718,13 @@ a row for each year × sex combination:
           1992      1993 Female mean_value  500.0
           1992      1993   Male mean_value  500.0
 
-This component's artifact key is artifact-required (it does not support
-``data_sources`` overrides). The example artifact provides this data
-automatically:
+Both data sources can be supplied via configuration:
 
 .. testcode::
 
-   from vivarium import InteractiveContext
+   from vivarium.engine import InteractiveContext
    from vivarium_public_health.population import BasePopulation, FertilityCrudeBirthRate
+   from vivarium_public_health._example_data import population_structure, live_births_by_sex
 
    config = make_base_config()
    config.update(
@@ -715,9 +733,19 @@ automatically:
                "population_size": 10_000,
                "initialization_age_min": 0,
                "initialization_age_max": 125,
+               "data_sources": {
+                   "population_structure": population_structure(),
+                   "location": "Kenya",
+               },
            },
            "time": {"step_size": 10},
            "mortality": {"data_sources": {"all_cause_mortality_rate": 0}},
+           "fertility": {
+               "data_sources": {
+                   "population_structure": population_structure(),
+                   "live_births_by_sex": live_births_by_sex(),
+               },
+           },
        },
        layer="override",
    )
@@ -753,11 +781,7 @@ given birth in the last nine months has a chance of giving birth determined
 by age-specific fertility rates. Newborns are linked to their parent via a
 ``parent_id`` column.
 
-By default this component loads ``covariate.age_specific_fertility_rate.estimate``
-from the artifact. It also supports the ``data_sources`` configuration
-pattern (see `Data sources`_), so you can override it with a scalar,
-DataFrame, callable, or alternative artifact key. The expected data shape
-is one row per age × year × sex × parameter combination:
+The expected data shape is one row per age × year × sex × parameter combination:
 
 .. testcode::
 
@@ -779,13 +803,11 @@ is one row per age × year × sex × parameter combination:
           1990      1991        0.0 0.019178   Male lower_value   0.05
           1990      1991        0.0 0.019178   Male upper_value   0.05
 
-Because this component supports the ``data_sources`` configuration, the
-tutorial example below supplies a constant rate directly instead of loading
-from the artifact:
+The tutorial example below supplies a constant rate directly:
 
 .. testcode::
 
-   from vivarium import InteractiveContext
+   from vivarium.engine import InteractiveContext
    from vivarium_public_health.population import BasePopulation, FertilityAgeSpecificRates
 
    config = make_base_config()
@@ -836,20 +858,23 @@ Fertility configuration summary
 
    * - Component
      - Configuration key
-     - Artifact data required
+     - Default data keys
      - Notes
    * - ``FertilityDeterministic``
      - ``fertility.number_of_new_simulants_each_year``
      - None
      - Simplest model; fixed birth count. Pure configuration.
    * - ``FertilityCrudeBirthRate``
-     - ``fertility.time_dependent_live_births``,
+     - ``fertility.data_sources.population_structure``,
+       ``fertility.data_sources.live_births_by_sex``,
+       ``fertility.time_dependent_live_births``,
        ``fertility.time_dependent_population_fraction``
-     - ``covariate.live_births_by_sex.estimate``
-     - Requires ``initialization_age_min == 0``. Artifact-required key
-       (no ``data_sources`` support).
+     - ``covariate.live_births_by_sex.estimate``,
+       ``population.structure`` (defaults)
+     - Requires ``initialization_age_min == 0``. Supports
+       ``data_sources`` overrides (DataFrame, callable, data key).
    * - ``FertilityAgeSpecificRates``
      - ``fertility_age_specific_rates.data_sources.age_specific_fertility_rate``
      - ``covariate.age_specific_fertility_rate.estimate`` (default)
      - Supports ``data_sources`` overrides (scalar, DataFrame, callable).
-       Tracks parent–child relationships.
+       Tracks parent-child relationships.

@@ -8,22 +8,23 @@ Provide tools for sampling and assigning core demographic characteristics to sim
 """
 
 from collections.abc import Callable, Iterable
+from typing import Any
 
 import numpy as np
 import pandas as pd
-from layered_config_tree.exceptions import ConfigurationKeyError
 from loguru import logger
-from vivarium import Component
-from vivarium.framework.engine import Builder
-from vivarium.framework.event import Event
-from vivarium.framework.population import SimulantData
-from vivarium.framework.randomness import RandomnessStream
-from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
+from vivarium.config_tree import ConfigurationKeyError
+from vivarium.engine import Component
+from vivarium.engine.framework.engine import Builder
+from vivarium.engine.framework.event import Event
+from vivarium.engine.framework.population import SimulantData
+from vivarium.engine.framework.randomness import RandomnessStream
+from vivarium.engine.framework.values import Pipeline, list_combiner, union_post_processor
 
 from vivarium_public_health import utilities
 from vivarium_public_health.population.data_transformations import (
+    add_age_midpoint,
     assign_demographic_proportions,
-    load_population_structure,
     rescale_binned_proportions,
     smooth_ages,
 )
@@ -35,25 +36,51 @@ class BasePopulation(Component):
 
     This component handles the initialization and lifecycle management of the
     core demographic attributes of the simulated population. At setup it loads
-    a population structure from the artifact, computes demographic sampling
-    proportions, and registers a population initializer that assigns each
-    simulant an age, sex, location, entrance time, and exit time. On each time
-    step simulants are aged forward by the step size.
+    a population structure (from the artifact by default, or from a configured
+    data source), computes demographic sampling proportions, and registers a
+    population initializer that assigns each simulant an age, sex, location,
+    entrance time, and exit time. On each time step simulants are aged forward
+    by the step size.
 
     """
-
-    CONFIGURATION_DEFAULTS = {
-        "population": {
-            "initialization_age_min": 0,
-            "initialization_age_max": 125,
-            "untracking_age": None,
-            "include_sex": "Both",  # Either Female, Male, or Both
-        }
-    }
 
     ##############
     # Properties #
     ##############
+
+    @property
+    def configuration_defaults(self) -> dict[str, Any]:
+        """The default configuration values for this component.
+
+        Configuration structure::
+
+            population:
+                population_structure:
+                    Source for population structure data. Default is the
+                    ``population.structure`` artifact key.
+                location:
+                    Source for location data. Default is the
+                    ``population.location`` artifact key.
+                initialization_age_min: int
+                    Minimum age for initial population generation. Default 0.
+                initialization_age_max: int
+                    Maximum age for initial population generation. Default 125.
+                untracking_age: int | None
+                    Age at which simulants are untracked. Default None.
+                include_sex: str
+                    Which sexes to include. One of 'Male', 'Female', or
+                    'Both'. Default 'Both'.
+        """
+        return {
+            "population": {
+                "population_structure": "population.structure",
+                "location": "population.location",
+                "initialization_age_min": 0,
+                "initialization_age_max": 125,
+                "untracking_age": None,
+                "include_sex": "Both",
+            }
+        }
 
     @property
     def time_step_priority(self) -> int:
@@ -130,7 +157,7 @@ class BasePopulation(Component):
         Returns
         -------
             A dictionary mapping stream name to a
-            :class:`~vivarium.framework.randomness.stream.RandomnessStream`. Keys are:
+            :class:`~vivarium.engine.framework.randomness.stream.RandomnessStream`. Keys are:
 
             ``'general_purpose'``
                 Used for overall population generation.
@@ -312,7 +339,7 @@ class BasePopulation(Component):
             )
 
     def _load_population_structure(self, builder: Builder) -> pd.DataFrame:
-        """Load population structure data from the artifact.
+        """Load population structure data from the configured data source.
 
         Parameters
         ----------
@@ -321,9 +348,13 @@ class BasePopulation(Component):
 
         Returns
         -------
-            A :class:`pandas.DataFrame` containing the raw population structure.
+            A :class:`pandas.DataFrame` containing the raw population structure
+            with derived ``age`` and ``location`` columns.
         """
-        return load_population_structure(builder)
+        data = self.get_data(builder, self.config.population_structure)
+        add_age_midpoint(data)
+        data["location"] = self.get_data(builder, self.config.location)
+        return data
 
 
 class ScaledPopulation(BasePopulation):
@@ -356,6 +387,27 @@ class ScaledPopulation(BasePopulation):
         super().__init__()
         self.scaling_factor = scaling_factor
 
+    @property
+    def configuration_defaults(self) -> dict[str, Any]:
+        """The default configuration values for this component.
+
+        Extends :class:`BasePopulation` configuration with a
+        ``scaling_factor`` data source.
+
+        Configuration structure::
+
+            population:
+                population_structure:
+                    Source for population structure data. Default is the
+                    ``population.structure`` artifact key.
+                scaling_factor:
+                    Source for the scaling factor. Default is the value
+                    passed to the constructor.
+        """
+        configuration_defaults = super().configuration_defaults
+        configuration_defaults["population"]["scaling_factor"] = self.scaling_factor
+        return configuration_defaults
+
     def _load_population_structure(self, builder: Builder) -> pd.DataFrame:
         """Load the population structure and apply the scaling factor.
 
@@ -374,8 +426,8 @@ class ScaledPopulation(BasePopulation):
         ValueError
             If the resolved scaling factor is not a :class:`pandas.DataFrame`.
         """
-        scaling_factor = self.get_data(builder, self.scaling_factor)
-        population_structure = load_population_structure(builder)
+        population_structure = super()._load_population_structure(builder)
+        scaling_factor = self.get_data(builder, self.config.scaling_factor)
         if not isinstance(scaling_factor, pd.DataFrame):
             raise ValueError(
                 f"Scaling factor must be a pandas DataFrame. Provided value: {scaling_factor}"

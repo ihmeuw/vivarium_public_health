@@ -43,8 +43,9 @@ when the simulant leaves the simulation.
 Demographic Sampling
 ++++++++++++++++++++
 
-The initializer loads ``population.structure`` data from the artifact and
-computes conditional sampling distributions with
+The initializer loads population structure data from the configured data source
+(by default from the ``population.structure`` artifact key) and computes
+conditional sampling distributions with
 :func:`~vivarium_public_health.population.data_transformations.assign_demographic_proportions`.
 Three probability views are produced:
 
@@ -107,8 +108,6 @@ runs during ``time_step__cleanup``. When ``population.untracking_age`` is
 configured, any simulant whose age meets or exceeds that threshold is marked
 and subsequently untracked by the framework. This provides a clean way to bound 
 the active population for models focused on specific age windows.
-
-.. _population_configuration_concept:
 
 See Also
 --------

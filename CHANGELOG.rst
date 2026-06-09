@@ -1,3 +1,7 @@
+**5.1.13 - 06/09/26**
+
+- Add data_sources configuration to population components for artifactless usage
+
 **5.1.12 - 06/03/26**
 
 - Add observers tutorial

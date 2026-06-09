@@ -1,11 +1,13 @@
 import math
 from itertools import product
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import pytest
-from vivarium import InteractiveContext
-from vivarium.testing_utilities import get_randomness
+from vivarium.engine import InteractiveContext
+from vivarium.engine.framework.engine import Builder
+from vivarium.engine.testing_utilities import get_randomness
 from vivarium_testing_utils import FuzzyChecker
 
 import vivarium_public_health.population.base_population as bp
@@ -661,3 +663,169 @@ def _check_locations(simulants):
             1 / len(simulants.location.unique()),
             abs_tol=0.01,
         )
+
+
+######################
+# Data sources tests #
+######################
+
+
+def _make_data_sources_sim(base_config, base_plugins, config_overrides, components=None):
+    """Build an InteractiveContext with the given config overrides."""
+    base_config.update(config_overrides, layer="override")
+    return InteractiveContext(
+        components=components or [bp.BasePopulation()],
+        configuration=base_config,
+        plugin_configuration=base_plugins,
+    )
+
+
+@pytest.fixture
+def data_sources_config(base_config):
+    base_config.update(
+        {
+            "population": {
+                "population_size": 100,
+                "initialization_age_min": 0,
+                "initialization_age_max": 125,
+            },
+            "mortality": {"data_sources": {"all_cause_mortality_rate": 0}},
+        },
+        source=str(Path(__file__).resolve()),
+        layer="model_override",
+    )
+    return base_config
+
+
+class TestBasePopulationDataSources:
+    """Tests for BasePopulation with various data_sources configurations."""
+
+    def test_dataframe_as_population_structure(self, data_sources_config, base_plugins):
+        """BasePopulation accepts a DataFrame as population_structure."""
+        pop_data = make_uniform_pop_data()
+        sim = _make_data_sources_sim(
+            data_sources_config,
+            base_plugins,
+            {
+                "population": {
+                    "population_structure": pop_data,
+                    "location": "TestLand",
+                }
+            },
+        )
+        pop = sim.get_population(["age", "sex", "location"])
+        assert len(pop) == 100
+        assert (pop["location"] == "TestLand").all()
+
+    def test_callable_as_population_structure(self, data_sources_config, base_plugins):
+        """BasePopulation accepts a callable as population_structure."""
+        pop_data = make_uniform_pop_data()
+        sim = _make_data_sources_sim(
+            data_sources_config,
+            base_plugins,
+            {
+                "population": {
+                    "data_sources": {
+                        "population_structure": lambda b: pop_data,
+                    },
+                    "location": "CallableLand",
+                }
+            },
+        )
+        pop = sim.get_population(["location"])
+        assert (pop["location"] == "CallableLand").all()
+
+    @pytest.mark.parametrize(
+        "location_source,expected_location",
+        [
+            # callable
+            (lambda b: "FunctionLand", "FunctionLand"),
+            # artifact key string
+            ("population.location", "Kenya"),
+            # module::function reference
+            (
+                "tests.population.test_base_population::get_test_location",
+                "ModuleFunctionLand",
+            ),
+            pytest.param(
+                "Ethiopia",
+                "Ethiopia",
+                id="literal_string",
+            ),
+        ],
+        ids=["callable", "data_key_string", "module_function_string", "literal_string"],
+    )
+    def test_location_dispatch(
+        self, data_sources_config, base_plugins, location_source, expected_location
+    ):
+        """Location is resolved correctly for each source type via get_data."""
+        pop_data = make_uniform_pop_data()
+        sim = _make_data_sources_sim(
+            data_sources_config,
+            base_plugins,
+            {
+                "population": {
+                    "data_sources": {
+                        "population_structure": pop_data,
+                    },
+                    "location": location_source,
+                }
+            },
+        )
+        pop = sim.get_population(["location"])
+        assert (pop["location"] == expected_location).all()
+
+    def test_location_default_loads_from_data_plugin(self, data_sources_config, base_plugins):
+        """Omitting location from data_sources uses the default artifact key."""
+        pop_data = make_uniform_pop_data()
+        sim = _make_data_sources_sim(
+            data_sources_config,
+            base_plugins,
+            {"population": {"population_structure": pop_data}},
+        )
+        pop = sim.get_population(["location"])
+        # The default "population.location" key is loaded via get_data;
+        # the mock artifact returns "Kenya".
+        assert (pop["location"] == "Kenya").all()
+
+
+class TestScaledPopulationDataSources:
+    """Tests for ScaledPopulation with configured data sources."""
+
+    def test_scaled_population_with_dataframe_sources(
+        self, data_sources_config, base_plugins
+    ):
+        """ScaledPopulation works with DataFrame data sources."""
+        pop_data = make_uniform_pop_data()
+        scaling_factor = pop_data[
+            ["age_start", "age_end", "sex", "year_start", "year_end"]
+        ].copy()
+        # Scale males by 3x, females by 1x -> expect ~75% male, ~25% female
+        scaling_factor["value"] = scaling_factor["sex"].map({"Male": 3.0, "Female": 1.0})
+
+        sim = _make_data_sources_sim(
+            data_sources_config,
+            base_plugins,
+            {
+                "population": {
+                    "population_size": 100_000,
+                    "data_sources": {
+                        "population_structure": pop_data,
+                    },
+                    "location": "ScaledLand",
+                }
+            },
+            components=[bp.ScaledPopulation(scaling_factor)],
+        )
+        pop = sim.get_population(["age", "sex", "location"])
+        assert len(pop) == 100_000
+        assert (pop["location"] == "ScaledLand").all()
+        # Verify scaling: males should be ~75% of population
+        male_fraction = (pop["sex"] == "Male").sum() / len(pop)
+        assert np.isclose(male_fraction, 0.75, atol=0.01)
+
+
+# Module-level function used by the '::' string test
+def get_test_location(builder: Builder) -> str:
+    """Return a test location string."""
+    return "ModuleFunctionLand"
