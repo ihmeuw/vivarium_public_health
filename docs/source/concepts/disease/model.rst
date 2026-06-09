@@ -12,7 +12,7 @@ Disease Model
 The :class:`~vivarium_public_health.disease.model.DiseaseModel` is the top-level
 :term:`component <Component>` that orchestrates disease states and transitions
 into a complete disease model. It extends vivarium's
-:class:`~vivarium.framework.state_machine.Machine` class.
+:class:`~vivarium.engine.framework.state_machine.Machine` class.
 
 A ``DiseaseModel`` is responsible for:
 
@@ -71,7 +71,7 @@ Disease States
 
 Disease states represent the distinct health conditions a simulant can occupy
 within a disease model. They extend vivarium's
-:class:`~vivarium.framework.state_machine.State` class with public-health-specific
+:class:`~vivarium.engine.framework.state_machine.State` class with public-health-specific
 attributes such as :term:`prevalence <Prevalence>`,
 :term:`disability weight <Disability Weight>`, and
 :term:`excess mortality rate <Excess Mortality Rate>`.
@@ -178,7 +178,7 @@ Transient Disease State
 +++++++++++++++++++++++
 
 :class:`~vivarium_public_health.disease.state.TransientDiseaseState` uses
-vivarium's :class:`~vivarium.framework.state_machine.Transient` mixin to create
+vivarium's :class:`~vivarium.engine.framework.state_machine.Transient` mixin to create
 states that simulants pass through instantaneously within a single time step.
 This is useful for intermediate states in multi-step disease progressions, e.g.
 an "infection" state that immediately resolves to either "with_condition" or
@@ -191,7 +191,7 @@ Disease Transitions
 
 Disease transitions define the rules by which simulants move between disease
 states. They extend vivarium's
-:class:`~vivarium.framework.state_machine.Transition` with disease-specific
+:class:`~vivarium.engine.framework.state_machine.Transition` with disease-specific
 behavior — primarily the conversion of epidemiological rates into transition
 probabilities and support for fixed-proportion and dwell-time-based transitions.
 
@@ -287,7 +287,7 @@ Dwell Time Transition
 +++++++++++++++++++++
 
 A dwell time transition is a plain
-:class:`~vivarium.framework.state_machine.Transition` (with no rate or
+:class:`~vivarium.engine.framework.state_machine.Transition` (with no rate or
 proportion) that is gated by the :term:`dwell time <Dwell Time>` configured on
 the source state. Simulants remain in the state for the specified duration, then
 transition unconditionally.

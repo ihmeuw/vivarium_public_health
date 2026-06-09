@@ -1,6 +1,6 @@
 from typing import NamedTuple
 
-from vivarium.framework.results import VALUE_COLUMN
+from vivarium.engine.framework.results import VALUE_COLUMN
 
 
 class __Columns(NamedTuple):

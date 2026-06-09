@@ -3,11 +3,11 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import pytest
-from layered_config_tree import LayeredConfigTree
-from vivarium import Component, InteractiveContext
-from vivarium.framework.engine import Builder
-from vivarium.framework.event import Event
-from vivarium.framework.population import SimulantData
+from vivarium.config_tree import ConfigTree
+from vivarium.engine import Component, InteractiveContext
+from vivarium.engine.framework.engine import Builder
+from vivarium.engine.framework.event import Event
+from vivarium.engine.framework.population import SimulantData
 
 from vivarium_public_health.disease import SI
 from vivarium_public_health.population import BasePopulation
@@ -15,8 +15,8 @@ from vivarium_public_health.risks import RiskEffect
 from vivarium_public_health.risks.base_risk import Risk
 
 #
-# from vivarium.framework.utilities import from_yearly
-# from vivarium.testing_utilities import build_table, BasePopulation
+# from vivarium.engine.framework.utilities import from_yearly
+# from vivarium.engine.testing_utilities import build_table, BasePopulation
 # from vivarium.interface.interactive import initialize_simulation
 #
 # from vivarium_public_health.disease import RateTransition
@@ -416,8 +416,8 @@ from vivarium_public_health.utilities import EntityString
 
 
 def _setup_risk_effect_simulation(
-    config: LayeredConfigTree,
-    plugins: LayeredConfigTree,
+    config: ConfigTree,
+    plugins: ConfigTree,
     risk: str | Risk,
     risk_effect: RiskEffect,
     data: dict[str, Any],

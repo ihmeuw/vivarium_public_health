@@ -10,7 +10,7 @@ vivarium_public_health components.
 from collections.abc import Iterable
 
 import pandas as pd
-from vivarium.framework.lookup import ScalarValue
+from vivarium.engine.framework.lookup import ScalarValue
 
 
 class EntityString(str):

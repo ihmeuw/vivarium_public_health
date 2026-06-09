@@ -8,7 +8,7 @@ stratification.
 
 These observer classes are public-health-specific helpers built on top of the
 vivarium framework's
-:class:`~vivarium.framework.results.observer.Observer` base class (see the
+:class:`~vivarium.engine.framework.results.observer.Observer` base class (see the
 `vivarium results concepts <https://vivarium.readthedocs.io/en/latest/concepts/results.html>`_
 documentation for details on the underlying results system).
 
@@ -22,8 +22,8 @@ documentation for details on the underlying results system).
    import pandas as pd
    from loguru import logger
    logger.disable("vivarium")
-   from vivarium import Component, InteractiveContext
-   from vivarium.framework.engine import Builder
+   from vivarium.engine import Component, InteractiveContext
+   from vivarium.engine.framework.engine import Builder
    from vivarium_public_health.disease import (
        DiseaseModel, DiseaseState, SusceptibleState, SI, SIS,
    )
@@ -45,8 +45,8 @@ Common Setup
 
 .. testcode::
 
-   from vivarium import Component, InteractiveContext
-   from vivarium.framework.engine import Builder
+   from vivarium.engine import Component, InteractiveContext
+   from vivarium.engine.framework.engine import Builder
    from vivarium_public_health.disease import (
        DiseaseModel, DiseaseState, SusceptibleState, SI, SIS,
    )

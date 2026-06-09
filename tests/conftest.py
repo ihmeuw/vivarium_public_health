@@ -3,9 +3,9 @@ from pathlib import Path
 
 import pytest
 from _pytest.logging import LogCaptureFixture
-from layered_config_tree import LayeredConfigTree
 from loguru import logger
-from vivarium.framework.configuration import build_simulation_configuration
+from vivarium.config_tree import ConfigTree
+from vivarium.engine.framework.configuration import build_simulation_configuration
 from vivarium_testing_utils import FuzzyChecker
 
 from tests.test_utilities import build_table_with_age
@@ -14,8 +14,8 @@ from vivarium_public_health.disease.state import SusceptibleState
 
 
 @pytest.fixture(scope="session")
-def base_config_factory() -> Callable[[], LayeredConfigTree]:
-    def _base_config() -> LayeredConfigTree:
+def base_config_factory() -> Callable[[], ConfigTree]:
+    def _base_config() -> ConfigTree:
         config = build_simulation_configuration()
 
         config.update(
@@ -32,22 +32,22 @@ def base_config_factory() -> Callable[[], LayeredConfigTree]:
 
 
 @pytest.fixture(scope="function")
-def base_config(base_config_factory) -> LayeredConfigTree:
+def base_config(base_config_factory) -> ConfigTree:
     yield base_config_factory()
 
 
 @pytest.fixture(scope="module")
-def base_plugins() -> LayeredConfigTree:
+def base_plugins() -> ConfigTree:
     config = {
         "required": {
             "data": {
                 "controller": "tests.mock_artifact.MockArtifactManager",
-                "builder_interface": "vivarium.framework.artifact.ArtifactInterface",
+                "builder_interface": "vivarium.engine.framework.artifact.ArtifactInterface",
             }
         }
     }
 
-    return LayeredConfigTree(config)
+    return ConfigTree(config)
 
 
 @pytest.fixture(scope="session")

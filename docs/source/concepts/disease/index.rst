@@ -18,7 +18,7 @@ Disease
 The ``vivarium_public_health`` disease package provides
 :term:`components <Component>` for modeling disease progression in a
 population of simulants. It builds on vivarium's
-:class:`~vivarium.framework.state_machine.Machine` framework to represent
+:class:`~vivarium.engine.framework.state_machine.Machine` framework to represent
 diseases as state machines where simulants move between health states according
 to epidemiological rates.
 

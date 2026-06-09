@@ -14,9 +14,9 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import scipy
-from layered_config_tree import LayeredConfigTree
-from vivarium.framework.engine import Builder
-from vivarium.framework.lookup import LookupTable
+from vivarium.config_tree import ConfigTree
+from vivarium.engine.framework.engine import Builder
+from vivarium.engine.framework.lookup import LookupTable
 
 from vivarium_public_health.causal_factor.calibration_constant import (
     get_calibration_constant_pipeline_name,
@@ -202,7 +202,7 @@ class NonLogLinearRiskEffect(RiskEffect):
     def load_relative_risk(
         self,
         builder: Builder,
-        configuration: LayeredConfigTree | None = None,
+        configuration: ConfigTree | None = None,
     ) -> str | float | pd.DataFrame:
         """Load relative risk data, normalizing by RR at the TMREL.
 

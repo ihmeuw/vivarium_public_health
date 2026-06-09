@@ -2,7 +2,7 @@
 # import pandas as pd
 # import pytest
 #
-# from vivarium.testing_utilities import build_table
+# from vivarium.engine.testing_utilities import build_table
 # from vivarium_public_health.risks import distributions
 # from vivarium_public_health.risks.data_transformations import pivot_categorical
 #

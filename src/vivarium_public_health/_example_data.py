@@ -16,11 +16,11 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from layered_config_tree import LayeredConfigTree
-from vivarium import Component
-from vivarium.framework.artifact import ArtifactManager
-from vivarium.framework.configuration import build_simulation_configuration
-from vivarium.framework.engine import Builder
+from vivarium.config_tree import ConfigTree
+from vivarium.engine import Component
+from vivarium.engine.framework.artifact import ArtifactManager
+from vivarium.engine.framework.configuration import build_simulation_configuration
+from vivarium.engine.framework.engine import Builder
 
 #############
 # Constants #
@@ -523,11 +523,11 @@ class ExampleArtifactManager(ArtifactManager):
     Use this in a plugin configuration so that tutorials and interactive
     sessions can run without access to real GBD data::
 
-        base_plugins = LayeredConfigTree({
+        base_plugins = ConfigTree({
             "required": {
                 "data": {
                     "controller": "vivarium_public_health._example_data.ExampleArtifactManager",
-                    "builder_interface": "vivarium.framework.artifact.ArtifactInterface",
+                    "builder_interface": "vivarium.engine.framework.artifact.ArtifactInterface",
                 }
             }
         })
@@ -559,19 +559,19 @@ class ExampleArtifactManager(ArtifactManager):
 ####################
 
 #: Plugin configuration that wires up the example artifact manager.
-BASE_PLUGINS = LayeredConfigTree(
+BASE_PLUGINS = ConfigTree(
     {
         "required": {
             "data": {
                 "controller": "vivarium_public_health._example_data.ExampleArtifactManager",
-                "builder_interface": "vivarium.framework.artifact.ArtifactInterface",
+                "builder_interface": "vivarium.engine.framework.artifact.ArtifactInterface",
             }
         }
     }
 )
 
 
-def make_base_config() -> LayeredConfigTree:
+def make_base_config() -> ConfigTree:
     """Return a fresh base configuration for tutorial examples."""
     config = build_simulation_configuration()
     config.update(

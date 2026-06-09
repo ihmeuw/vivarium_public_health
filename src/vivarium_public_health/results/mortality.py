@@ -12,7 +12,7 @@ from typing import Any
 
 import pandas as pd
 from pandas.api.types import CategoricalDtype
-from vivarium.framework.engine import Builder
+from vivarium.engine.framework.engine import Builder
 
 from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
 from vivarium_public_health.disease.state import ExcessMortalityState

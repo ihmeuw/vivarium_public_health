@@ -1,6 +1,6 @@
 """Exception classes for the disease modeling package."""
 
-from vivarium.exceptions import VivariumError
+from vivarium.engine.exceptions import VivariumError
 
 
 class DiseaseModelError(VivariumError):

@@ -3,11 +3,11 @@ from unittest.mock import patch
 import numpy as np
 import pandas as pd
 import pytest
-from layered_config_tree import ConfigurationError, LayeredConfigTree
-from vivarium import Component, InteractiveContext
-from vivarium.framework.state_machine import Transition
-from vivarium.framework.utilities import from_yearly
-from vivarium.testing_utilities import metadata
+from vivarium.config_tree import ConfigTree, ConfigurationError
+from vivarium.engine import Component, InteractiveContext
+from vivarium.engine.framework.state_machine import Transition
+from vivarium.engine.framework.utilities import from_yearly
+from vivarium.engine.testing_utilities import metadata
 
 from tests.test_utilities import build_table_with_age
 from vivarium_public_health.disease import (
@@ -529,8 +529,8 @@ def test_artifact_transition_keys(mocker, disease):
 
 @pytest.mark.parametrize("rate_conversion_type", ["linear", "exponential"])
 def test_transition_rate_to_probability_configuration(
-    base_config: LayeredConfigTree,
-    base_plugins: LayeredConfigTree,
+    base_config: ConfigTree,
+    base_plugins: ConfigTree,
     disease: str,
     rate_conversion_type: str,
 ):
@@ -581,8 +581,8 @@ def test_transition_rate_to_probability_configuration(
 
 
 def test_disease_model_rate_conversion_config_error(
-    base_config: LayeredConfigTree,
-    base_plugins: LayeredConfigTree,
+    base_config: ConfigTree,
+    base_plugins: ConfigTree,
     disease: str,
 ):
     """

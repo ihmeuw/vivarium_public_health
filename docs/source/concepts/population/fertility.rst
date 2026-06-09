@@ -55,7 +55,7 @@ All newborns enter the simulation at age zero.
 :class:`~vivarium_public_health.population.add_new_birth_cohorts.FertilityCrudeBirthRate`
 computes the expected number of births from live-birth covariate data and the
 ratio of the simulation's ``population.population_size`` to the true population
-count in the artifact. On each time step it draws from a Poisson distribution
+count. On each time step it draws from a Poisson distribution
 to decide how many new simulants to create.
 
 The component respects two time-dependence toggles (``fertility.time_dependent_live_births`` 

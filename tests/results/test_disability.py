@@ -3,7 +3,7 @@
 # import numpy as np
 # import pandas as pd
 #
-# from vivarium.testing_utilities import build_table
+# from vivarium.engine.testing_utilities import build_table
 # from vivarium.interface.interactive import setup_simulation
 #
 # from vivarium_public_health.population import BasePopulation

@@ -1,9 +1,9 @@
 import numpy as np
 import pandas as pd
 import pytest
-from layered_config_tree import ConfigurationError
-from vivarium import InteractiveContext
-from vivarium.testing_utilities import TestPopulation
+from vivarium.config_tree import ConfigurationError
+from vivarium.engine import InteractiveContext
+from vivarium.engine.testing_utilities import TestPopulation
 
 from tests.risks.test_effect import _setup_risk_effect_simulation
 from tests.test_utilities import make_age_bins

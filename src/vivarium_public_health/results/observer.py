@@ -11,9 +11,9 @@ public health models.
 from collections.abc import Callable
 
 import pandas as pd
-from vivarium.framework.engine import Builder
-from vivarium.framework.event import Event
-from vivarium.framework.results import Observer
+from vivarium.engine.framework.engine import Builder
+from vivarium.engine.framework.event import Event
+from vivarium.engine.framework.results import Observer
 
 from vivarium_public_health.results.columns import COLUMNS
 

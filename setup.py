@@ -44,8 +44,8 @@ if __name__ == "__main__":
     install_requirements = [
         "vivarium_dependencies[pandas,numpy_lt_2,scipy,tables,loguru,pyarrow]",
         "vivarium_build_utils>=3.0.2,<4.0.0",
-        "vivarium>=4.1.0,<5.0.0",
-        "layered_config_tree",
+        "vivarium-engine>=5.1.1",
+        "vivarium-config-tree",
         "risk_distributions>=2.0.11",
     ]
 

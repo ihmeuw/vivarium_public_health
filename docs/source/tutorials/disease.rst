@@ -8,9 +8,9 @@ models from states and transitions, and how to use the pre-built models for
 common disease progressions.
 
 The disease components in this package extend the base
-:class:`~vivarium.framework.state_machine.State` and
-:class:`~vivarium.framework.state_machine.Transition` classes from
-:mod:`vivarium.framework.state_machine`.
+:class:`~vivarium.engine.framework.state_machine.State` and
+:class:`~vivarium.engine.framework.state_machine.Transition` classes from
+:mod:`vivarium.engine.framework.state_machine`.
 
 .. contents::
    :local:
@@ -20,7 +20,7 @@ The disease components in this package extend the base
 
    import numpy as np
    import pandas as pd
-   from vivarium import InteractiveContext
+   from vivarium.engine import InteractiveContext
    from vivarium_public_health.disease import *
    from vivarium_public_health.population import BasePopulation
    from vivarium_public_health._example_data import *
@@ -58,7 +58,7 @@ To run any example in a standalone script, include all of these at the top:
 
 .. testcode::
 
-   from vivarium import InteractiveContext
+   from vivarium.engine import InteractiveContext
    from vivarium_public_health.disease import *
    from vivarium_public_health.population import BasePopulation
    from vivarium_public_health._example_data import BASE_PLUGINS, make_base_config

@@ -13,8 +13,8 @@ from __future__ import annotations
 from typing import Any
 
 import pandas as pd
-from vivarium import Component
-from vivarium.framework.engine import Builder
+from vivarium.engine import Component
+from vivarium.engine.framework.engine import Builder
 
 from vivarium_public_health.utilities import TargetString
 

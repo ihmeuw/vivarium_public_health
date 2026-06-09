@@ -33,11 +33,11 @@ modified unmodeled CSMR.
 from typing import Any
 
 import pandas as pd
-from vivarium import Component
-from vivarium.framework.engine import Builder
-from vivarium.framework.event import Event
-from vivarium.framework.population import SimulantData
-from vivarium.framework.randomness import RandomnessStream
+from vivarium.engine import Component
+from vivarium.engine.framework.engine import Builder
+from vivarium.engine.framework.event import Event
+from vivarium.engine.framework.population import SimulantData
+from vivarium.engine.framework.randomness import RandomnessStream
 
 from vivarium_public_health.causal_factor.calibration_constant import (
     register_risk_affected_attribute_producer,
@@ -207,7 +207,7 @@ class Mortality(Component):
 
         Returns
         -------
-            The :class:`~vivarium.framework.randomness.stream.RandomnessStream` used
+            The :class:`~vivarium.engine.framework.randomness.stream.RandomnessStream` used
             for filtering deaths and choosing cause of death.
         """
         return builder.randomness.get_stream(self._randomness_stream_name)

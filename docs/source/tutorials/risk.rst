@@ -15,7 +15,7 @@ rates, see the :doc:`risk_effect` tutorial.
 
    import numpy as np
    import pandas as pd
-   from vivarium import InteractiveContext
+   from vivarium.engine import InteractiveContext
    from vivarium_public_health.risks import Risk, RiskEffect, NonLogLinearRiskEffect
    from vivarium_public_health.disease import *
    from vivarium_public_health.population import BasePopulation
@@ -53,7 +53,7 @@ To run any example in a standalone script, include all of these at the top:
 
 .. testcode::
 
-   from vivarium import InteractiveContext
+   from vivarium.engine import InteractiveContext
    from vivarium_public_health.risks import Risk, RiskEffect
    from vivarium_public_health.disease import SI, SIS
    from vivarium_public_health.population import BasePopulation

@@ -16,12 +16,12 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from layered_config_tree import ConfigurationError
 from loguru import logger
-from vivarium.framework.engine import Builder
-from vivarium.framework.lookup import LookupTable
-from vivarium.framework.population import SimulantData
-from vivarium.types import LookupTableData
+from vivarium.config_tree import ConfigurationError
+from vivarium.engine.framework.engine import Builder
+from vivarium.engine.framework.lookup import LookupTable
+from vivarium.engine.framework.population import SimulantData
+from vivarium.engine.types import LookupTableData
 
 from vivarium_public_health.causal_factor.distributions import PolytomousDistribution
 from vivarium_public_health.causal_factor.utilities import (

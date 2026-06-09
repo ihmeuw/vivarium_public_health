@@ -11,7 +11,7 @@ in the simulation.
 import pandas as pd
 from loguru import logger
 from pandas.api.types import CategoricalDtype
-from vivarium.framework.engine import Builder
+from vivarium.engine.framework.engine import Builder
 
 from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
 from vivarium_public_health.results.columns import COLUMNS

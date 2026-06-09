@@ -3,7 +3,7 @@ import itertools
 import numpy as np
 import pandas as pd
 import pytest
-from vivarium import InteractiveContext
+from vivarium.engine import InteractiveContext
 
 from tests.test_utilities import build_table_with_age
 from vivarium_public_health.disease import DiseaseModel, DiseaseState

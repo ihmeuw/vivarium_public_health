@@ -205,6 +205,7 @@ intersphinx_mapping = {
         "https://vivarium-config-tree.readthedocs.io/en/latest/",
         None,
     ),
+    "vivarium-artifact": ("https://vivarium-artifact.readthedocs.io/en/latest/", None),
     # Backwards compatibility for legacy docs
     "vivarium": ("https://vivarium.readthedocs.io/en/latest/", None),
 }

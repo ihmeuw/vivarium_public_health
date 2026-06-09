@@ -15,12 +15,12 @@ from functools import partial
 from typing import Any
 
 import pandas as pd
-from layered_config_tree import ConfigurationError
-from vivarium.framework.engine import Builder
-from vivarium.framework.event import Event
-from vivarium.framework.population import SimulantData
-from vivarium.framework.state_machine import Machine
-from vivarium.types import DataInput, LookupTableData
+from vivarium.config_tree import ConfigurationError
+from vivarium.engine.framework.engine import Builder
+from vivarium.engine.framework.event import Event
+from vivarium.engine.framework.population import SimulantData
+from vivarium.engine.framework.state_machine import Machine
+from vivarium.engine.types import DataInput, LookupTableData
 
 from vivarium_public_health.disease.exceptions import DiseaseModelError
 from vivarium_public_health.disease.state import BaseDiseaseState, SusceptibleState
