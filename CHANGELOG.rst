@@ -1,3 +1,8 @@
+**5.1.14 - 06/10/26**
+
+- Add notes about this repository being archived to the README. A proper shim
+  release will likely be added in the future.
+
 **5.1.13 - 06/09/26**
 
 - Add data_sources configuration to population components for artifactless usage
