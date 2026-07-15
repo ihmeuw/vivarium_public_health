@@ -2,26 +2,34 @@
 Vivarium Public Health
 ======================
 
-**NOTE: This repository has been archived.**
+**NOTE: This repository is archived and will receive no further updates.**
 
-The ``vivarium_public_health`` package has been renamed and migrated into the
+The ``vivarium_public_health`` package's development has migrated into the
 `vivarium-suite monorepo <https://github.com/ihmeuw/vivarium-suite>`_.
 
 What changed
 ------------
 
+- **PyPI distribution:** ``vivarium-public-health`` (unchanged - same name)
 - **Import path:** ``vivarium_public_health`` -> ``vivarium.public_health``
 - **Source:** ``ihmeuw/vivarium_public_health`` (archived) ->
   ``ihmeuw/vivarium-suite`` (under ``libs/public-health/``)
+- **Docs:** https://vivarium-public-health.readthedocs.io/
+
+This repository's final release was ``v5.1.14``. The ``vivarium-public-health``
+distribution name is now published from the monorepo starting at ``v6.0.0``, so
+``pip install vivarium-public-health`` resolves to the monorepo release (which
+imports as ``vivarium.public_health``). This repository is frozen and will not
+receive updates.
 
 To migrate fully to the new package
 -----------------------------------
 
-**Install:**
+**Install (unchanged):**
 
 .. code-block:: bash
 
-    pip install vivarium-public-health  # no change here
+    pip install vivarium-public-health
 
 **Import:**
 

@@ -1,7 +1,7 @@
 **5.1.14 - 06/10/26**
 
-- Add notes about this repository being archived to the README. A proper shim
-  release will likely be added in the future.
+- Adds an archive banner to the README pointing at the ``vivarium-suite``
+  monorepo (``libs/public-health/``, published as ``vivarium-public-health``).
 
 **5.1.13 - 06/09/26**
 
